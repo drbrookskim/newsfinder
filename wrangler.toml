@@ -1,0 +1,6 @@
+name = "newsfinder"
+main = "worker.js"
+compatibility_date = "2024-05-30"
+
+[vars]
+GEMINI_MODEL = "gemini-3.5-flash"

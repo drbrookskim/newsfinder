@@ -90,6 +90,23 @@ function setupEventListeners() {
   // History action events
   clearHistoryBtn.addEventListener('click', clearAllHistory);
 
+  // History Dropdown Popover behavior
+  const historyToggleBtn = document.getElementById('history-toggle-btn');
+  const historyDropdown = document.getElementById('history-dropdown');
+  
+  if (historyToggleBtn && historyDropdown) {
+    historyToggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      historyDropdown.classList.toggle('active');
+    });
+    
+    document.addEventListener('click', (e) => {
+      if (!historyDropdown.contains(e.target) && e.target !== historyToggleBtn) {
+        historyDropdown.classList.remove('active');
+      }
+    });
+  }
+
   // Error panel retry
   retryBtn.addEventListener('click', () => {
     const query = companyInput.value.trim();

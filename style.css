@@ -1391,3 +1391,254 @@ h1, h2, h3, h4, .brand-name, .glow-btn, .trending-tag-btn, .verified-badge {
     position: static;
   }
 }
+
+/* ==========================================================================
+   Theme Toggle Button Styles
+   ========================================================================== */
+
+.theme-toggle-btn {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+}
+
+.theme-icon {
+  width: 16px;
+  height: 16px;
+  display: none;
+}
+
+/* Default Dark Mode active: show Sun icon to switch to light */
+.sun-icon {
+  display: block;
+}
+
+/* ==========================================================================
+   Light Mode Custom Properties & Overrides
+   ========================================================================== */
+
+body.light-mode {
+  --bg-dark: #fcfcfd;
+  --bg-card: rgba(255, 255, 255, 0.8);
+  --bg-input: rgba(243, 244, 246, 0.5);
+  --border-light: rgba(0, 0, 0, 0.06);
+  --border-hover: rgba(0, 0, 0, 0.12);
+  --border-focus: rgba(139, 92, 246, 0.5);
+  
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  
+  /* Brighten decorative accent gradients for light backgrounds */
+  --accent-violet: #7c3aed;
+  --accent-teal: #059669;
+  --accent-cyan: #0891b2;
+  --accent-indigo: #4f46e5;
+}
+
+/* Change icon visibility in light mode */
+body.light-mode .sun-icon {
+  display: none;
+}
+
+body.light-mode .moon-icon {
+  display: block;
+}
+
+body.light-mode .bg-orb {
+  opacity: 0.03;
+}
+
+body.light-mode .bg-mesh {
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.015) 1px, transparent 1px);
+}
+
+body.light-mode .top-nav {
+  background: rgba(255, 255, 255, 0.8);
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+body.light-mode .brand-name {
+  color: #111827;
+}
+
+body.light-mode .nav-icon-btn {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.06);
+  color: var(--text-secondary);
+}
+
+body.light-mode .nav-icon-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: var(--text-primary);
+}
+
+body.light-mode .theme-toggle-btn {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.06);
+  color: var(--text-secondary);
+}
+
+body.light-mode .theme-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: var(--text-primary);
+}
+
+body.light-mode .tech-badge {
+  background: rgba(124, 58, 237, 0.04);
+  border-color: rgba(124, 58, 237, 0.12);
+}
+
+body.light-mode #company-input {
+  background: var(--bg-input);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--text-primary);
+}
+
+body.light-mode #company-input:focus {
+  background: #ffffff;
+  border-color: var(--accent-violet);
+  box-shadow: 0 0 20px rgba(124, 58, 237, 0.08);
+}
+
+body.light-mode .search-console {
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+body.light-mode .trending-tag-btn {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.06);
+  color: var(--text-secondary);
+}
+
+body.light-mode .trending-tag-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(124, 58, 237, 0.3);
+  color: var(--text-primary);
+}
+
+body.light-mode .hero-title {
+  background: linear-gradient(to right, #111827, #4b5563);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+body.light-mode .feature-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.04);
+}
+
+body.light-mode .feature-card:hover {
+  background: #ffffff;
+  border-color: rgba(124, 58, 237, 0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+}
+
+body.light-mode .glass-panel {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+}
+
+body.light-mode .result-header-card {
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+body.light-mode .insight-content-card {
+  border-color: rgba(0, 0, 0, 0.04);
+}
+
+body.light-mode .markdown-body {
+  color: #374151;
+}
+
+body.light-mode .markdown-body h2 {
+  color: #111827;
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+body.light-mode .markdown-body strong {
+  color: #000000;
+}
+
+body.light-mode .status-summary-card,
+body.light-mode .volatility-card,
+body.light-mode .sources-panel {
+  border-color: rgba(0, 0, 0, 0.04);
+}
+
+body.light-mode .gauge-bar-bg {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+body.light-mode .source-card {
+  background: rgba(0, 0, 0, 0.01);
+  border-color: rgba(0, 0, 0, 0.03);
+}
+
+body.light-mode .source-card:hover {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+body.light-mode .history-dropdown {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+}
+
+body.light-mode .dropdown-header {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+body.light-mode .history-item {
+  background: rgba(0, 0, 0, 0.01);
+  border-color: rgba(0, 0, 0, 0.03);
+}
+
+body.light-mode .history-item:hover {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+
+body.light-mode .timeline-step .step-num {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+body.light-mode .timeline-step.active .step-num {
+  background: rgba(124, 58, 237, 0.08);
+  border-color: rgba(124, 58, 237, 0.3);
+}
+
+body.light-mode .loading-state-card {
+  border-color: rgba(0, 0, 0, 0.04);
+}
+
+body.light-mode .radar-core {
+  background: #ffffff;
+  border-color: rgba(124, 58, 237, 0.3);
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.1);
+}
+
+body.light-mode .error-card {
+  background: rgba(239, 68, 68, 0.005);
+  border-color: rgba(239, 68, 68, 0.1);
+}
+

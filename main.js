@@ -47,6 +47,7 @@ const trendingTags = document.querySelectorAll('.trending-tag-btn');
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
   loadHistory();
+  loadMarqueeSummaries();
   setupEventListeners();
   companyInput.focus();
 });
@@ -305,6 +306,12 @@ function renderResults(companyName, data) {
 
   // Render sources grid
   renderSources(data.sources);
+
+  // Extract and add key summary to flowing bottom marquee feed
+  const extractedSummary = extractSummaryText(insightText);
+  if (extractedSummary) {
+    addSummaryToMarquee(companyName, extractedSummary, impact);
+  }
 }
 
 // Helper to format model name nicely
@@ -667,4 +674,176 @@ ${summaryBullets}
 - **장기 기회**: 고부가 가치 사업 부문의 실질적인 체질 개선 작업이 완료되는 시점부터 실적 턴어라운드가 기대되며, 글로벌 공급망 안정화에 기반해 장기 가치 상승이 예상됩니다.`,
     sources: sources
   };
+}
+
+// --- Bottom Sliding Marquee Summaries Logic ---
+const SUMMARIES_STORAGE_KEY = 'signnith_news_finder_summaries';
+let marqueeSummaries = [];
+
+// Pre-populated default summaries with rich details
+const defaultSummaries = [
+  {
+    name: '삼성전자',
+    summary: '반도체 HBM 공급 가속화 및 모바일 기기 온디바이스 AI 시장 주도권 강화로 3분기 실적 개선 궤도 진입.',
+    impact: 'positive',
+    time: '14:20'
+  },
+  {
+    name: 'Apple',
+    summary: '아이폰 신규 라인업의 프리미엄화 성공 및 AI 어시스턴트 적용 지역 확대로 견고한 글로벌 수요 입증.',
+    impact: 'positive',
+    time: '13:45'
+  },
+  {
+    name: 'NVIDIA',
+    summary: '차세대 GPU 칩셋 공급 부족 현상이 이어지는 가운데 데이터센터 부문의 사상 최대 매출 경신 랠리 지속.',
+    impact: 'positive',
+    time: '11:15'
+  },
+  {
+    name: 'Tesla',
+    summary: '자율주행 FSD 라이선싱 확대 성과 및 기가팩토리 가동률 극대화에 따른 제조 마진 회복 신호 포착.',
+    impact: 'neutral',
+    time: '09:30'
+  },
+  {
+    name: 'SK하이닉스',
+    summary: '초고대역폭 메모리 HBM3E 글로벌 독점 공급 지배력 유지 및 고부가 D램 흑자 폭 확대 전망 우세.',
+    impact: 'positive',
+    time: '08:50'
+  }
+];
+
+function loadMarqueeSummaries() {
+  try {
+    const rawData = localStorage.getItem(SUMMARIES_STORAGE_KEY);
+    if (rawData) {
+      marqueeSummaries = JSON.parse(rawData);
+    } else {
+      marqueeSummaries = [...defaultSummaries];
+      localStorage.setItem(SUMMARIES_STORAGE_KEY, JSON.stringify(marqueeSummaries));
+    }
+  } catch (e) {
+    console.error('Failed to load marquee summaries:', e);
+    marqueeSummaries = [...defaultSummaries];
+  }
+  renderMarqueeUI();
+}
+
+function addSummaryToMarquee(companyName, summaryText, impact) {
+  const timestamp = new Date().toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  
+  // Filter out any existing item with the same company name to keep it unique
+  marqueeSummaries = marqueeSummaries.filter(item => item.name.toLowerCase() !== companyName.toLowerCase());
+  
+  marqueeSummaries.unshift({
+    name: companyName,
+    summary: summaryText,
+    impact: impact,
+    time: timestamp
+  });
+  
+  // Limit to maximum 8 items in the marquee list
+  if (marqueeSummaries.length > 8) {
+    marqueeSummaries.pop();
+  }
+  
+  try {
+    localStorage.setItem(SUMMARIES_STORAGE_KEY, JSON.stringify(marqueeSummaries));
+  } catch (e) {
+    console.error('Failed to save marquee summaries:', e);
+  }
+  
+  renderMarqueeUI();
+}
+
+function renderMarqueeUI() {
+  const marqueeTrack = document.getElementById('marquee-track');
+  if (!marqueeTrack) return;
+  
+  marqueeTrack.innerHTML = '';
+  
+  if (marqueeSummaries.length === 0) {
+    marqueeSummaries = [...defaultSummaries];
+  }
+  
+  // Map impact to Korean label
+  const getImpactLabel = (impact) => {
+    if (impact === 'positive') return '긍정적';
+    if (impact === 'concern') return '우려됨';
+    return '중립적';
+  };
+  
+  const createTileHTML = (item) => {
+    const impactClass = item.impact || 'neutral';
+    const impactLabel = getImpactLabel(impactClass);
+    return `
+      <div class="marquee-tile" data-company="${item.name}">
+        <div class="tile-header">
+          <span class="tile-badge badge-${impactClass}">${impactLabel}</span>
+          <span class="tile-company">${item.name}</span>
+          <span class="tile-time">${item.time}</span>
+        </div>
+        <p class="tile-summary">${item.summary}</p>
+      </div>
+    `;
+  };
+  
+  // Render the list twice to enable a seamless infinite scroll loop
+  const set1 = marqueeSummaries.map(item => createTileHTML(item)).join('');
+  const set2 = marqueeSummaries.map(item => createTileHTML(item)).join('');
+  
+  marqueeTrack.innerHTML = set1 + set2;
+  
+  // Add click listeners to all dynamically created tiles
+  const tiles = marqueeTrack.querySelectorAll('.marquee-tile');
+  tiles.forEach(tile => {
+    tile.addEventListener('click', () => {
+      const company = tile.getAttribute('data-company');
+      if (company) {
+        companyInput.value = company;
+        if (clearInputBtn) {
+          clearInputBtn.style.display = 'flex';
+        }
+        performAnalysis(company);
+      }
+    });
+  });
+}
+
+function extractSummaryText(insightText) {
+  if (!insightText) return '';
+  
+  // Try to find the section under ## 1. 핵심 뉴스 요약
+  const summaryMatch = insightText.match(/## 1\.\s*핵심\s*뉴스\s*요약\s*\n([\s\S]*?)(?=\n##|$)/);
+  let summarySection = summaryMatch ? summaryMatch[1] : insightText;
+  
+  // Extract bullet lines
+  const lines = summarySection.split('\n')
+    .map(line => line.trim())
+    .filter(line => line.startsWith('-') || line.startsWith('*'))
+    .map(line => {
+      // Strip bullet character and markdown bold/italic tags
+      return line.replace(/^[\-\*\s]+/, '')
+                 .replace(/\*\*([\s\S]*?)\*\*/g, '$1')
+                 .replace(/\*([\s\S]*?)\*/g, '$1')
+                 .trim();
+    });
+    
+  if (lines.length > 0) {
+    // Combine first 2 bullets
+    return lines.slice(0, 2).join(' ');
+  }
+  
+  // Fallback: extract the first two sentences from the text
+  const cleanText = insightText.replace(/[#\*`_\-]/g, '').trim();
+  const sentences = cleanText.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+  if (sentences.length > 0) {
+    return sentences.slice(0, 2).join('. ') + '.';
+  }
+  return '';
 }

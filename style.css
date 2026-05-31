@@ -1642,3 +1642,147 @@ body.light-mode .error-card {
   border-color: rgba(239, 68, 68, 0.1);
 }
 
+/* ==========================================================================
+   Aurora Background Waves (Dark Mode Exclusive)
+   ========================================================================== */
+
+.bg-aurora {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.12; /* Kept very subtle for elegant branding */
+  transition: var(--transition-smooth);
+}
+
+.aurora-wave {
+  position: absolute;
+  filter: blur(90px);
+  mix-blend-mode: screen;
+  border-radius: 50%;
+  animation: drift-ani 25s infinite alternate ease-in-out;
+}
+
+.aurora-wave-1 {
+  top: -30%;
+  left: -15%;
+  width: 75vw;
+  height: 75vw;
+  background: radial-gradient(circle, var(--accent-violet) 0%, rgba(0,0,0,0) 70%);
+  animation-duration: 22s;
+}
+
+.aurora-wave-2 {
+  top: -35%;
+  right: -15%;
+  width: 80vw;
+  height: 80vw;
+  background: radial-gradient(circle, var(--accent-teal) 0%, rgba(0,0,0,0) 70%);
+  animation-duration: 32s;
+  animation-delay: -6s;
+}
+
+.aurora-wave-3 {
+  top: -15%;
+  left: 25%;
+  width: 65vw;
+  height: 65vw;
+  background: radial-gradient(circle, var(--accent-indigo) 0%, rgba(0,0,0,0) 70%);
+  animation-duration: 28s;
+  animation-delay: -12s;
+}
+
+@keyframes drift-ani {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+  50% { transform: translate(4vw, 4vh) rotate(45deg) scale(1.08); }
+  100% { transform: translate(-4vw, -4vh) rotate(-45deg) scale(0.92); }
+}
+
+/* ==========================================================================
+   Meteors / Shooting Stars Animation (Dark Mode Exclusive)
+   ========================================================================== */
+
+.bg-meteors {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  transition: var(--transition-smooth);
+}
+
+.meteor {
+  position: absolute;
+  top: -50px;
+  width: 1px;
+  height: 90px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0));
+  animation: meteor-fall-ani 5s linear infinite;
+  opacity: 0;
+}
+
+@keyframes meteor-fall-ani {
+  0% {
+    transform: translateY(0) translateX(0) rotate(-35deg) scaleY(0);
+    opacity: 0;
+  }
+  1% {
+    opacity: 0.6;
+  }
+  15% {
+    transform: translateY(300px) translateX(-210px) rotate(-35deg) scaleY(1.5);
+    opacity: 0.8;
+  }
+  30% {
+    transform: translateY(600px) translateX(-420px) rotate(-35deg) scaleY(1);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(600px) translateX(-420px) rotate(-35deg) scaleY(1);
+    opacity: 0;
+  }
+}
+
+.meteor-1 {
+  right: 5%;
+  animation-delay: 0s;
+  animation-duration: 6s;
+}
+
+.meteor-2 {
+  right: 25%;
+  animation-delay: 2.5s;
+  animation-duration: 7s;
+}
+
+.meteor-3 {
+  right: 45%;
+  animation-delay: 4.8s;
+  animation-duration: 8.5s;
+}
+
+.meteor-4 {
+  right: 65%;
+  animation-delay: 1.2s;
+  animation-duration: 6.8s;
+}
+
+.meteor-5 {
+  right: 80%;
+  animation-delay: 3.4s;
+  animation-duration: 7.5s;
+}
+
+/* Deactivate both effects completely in Light Mode for clean white-space */
+body.light-mode .bg-aurora,
+body.light-mode .bg-meteors {
+  display: none !important;
+}
+

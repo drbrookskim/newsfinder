@@ -255,7 +255,11 @@ function renderResults(companyName, data) {
     const modelLabel = formatModelName(data.modelUsed);
     const techBadgeText = document.querySelector('.tech-badge span:last-child');
     if (techBadgeText) {
-      techBadgeText.textContent = `${modelLabel} Active`;
+      if (modelLabel === 'AI Engine Working') {
+        techBadgeText.textContent = modelLabel;
+      } else {
+        techBadgeText.textContent = `${modelLabel} Active`;
+      }
     }
   }
 
@@ -613,7 +617,7 @@ function generateClientMockData(companyName, liveNews) {
   }
 
   return {
-    modelUsed: 'gemini-1.5-flash (Client Live RSS Mode)',
+    modelUsed: 'AI Engine Working',
     insight: `## 1. 핵심 뉴스 요약
 ${summaryBullets}
 

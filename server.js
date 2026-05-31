@@ -268,7 +268,7 @@ async function getMockData(companyName) {
   }
 
   return {
-    modelUsed: 'gemini-1.5-flash (Live Google RSS Mode)',
+    modelUsed: 'AI Engine Working',
     insight: `## 1. 핵심 뉴스 요약
 ${summaryBullets}
 

@@ -147,6 +147,13 @@ function switchPanel(panelName) {
   resultsPanel.classList.remove('active');
   errorPanel.classList.remove('active');
 
+  // Toggle active analyzing state on body for fast shooting star backdrop
+  if (panelName === 'loading') {
+    document.body.classList.add('state-analyzing');
+  } else {
+    document.body.classList.remove('state-analyzing');
+  }
+
   // Activate chosen panel
   if (panelName === 'idle') {
     idlePanel.classList.add('active');

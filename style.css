@@ -1800,6 +1800,36 @@ body.light-mode .error-card {
   animation-duration: 7.5s;
 }
 
+/* Hyper-speed meteor shower animation during AI analysis / loading state */
+body.state-analyzing .meteor {
+  animation: meteor-fall-ani 1.5s linear infinite;
+}
+
+body.state-analyzing .meteor-1 {
+  animation-delay: 0s;
+  animation-duration: 1.5s;
+}
+
+body.state-analyzing .meteor-2 {
+  animation-delay: 0.3s;
+  animation-duration: 1.8s;
+}
+
+body.state-analyzing .meteor-3 {
+  animation-delay: 0.6s;
+  animation-duration: 1.6s;
+}
+
+body.state-analyzing .meteor-4 {
+  animation-delay: 0.2s;
+  animation-duration: 1.4s;
+}
+
+body.state-analyzing .meteor-5 {
+  animation-delay: 0.8s;
+  animation-duration: 1.7s;
+}
+
 /* Deactivate both effects completely in Light Mode for clean white-space */
 body.light-mode .bg-aurora,
 body.light-mode .bg-meteors {

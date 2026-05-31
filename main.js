@@ -7,6 +7,11 @@
 const STORAGE_KEY = 'signnith_news_finder_history';
 let searchHistory = [];
 
+// --- API Configuration for Serverless edge ---
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? ''
+  : 'https://newsfinder.drbrookskim.workers.dev'; // 💡 Replace with your actual Cloudflare Worker URL after deployment!
+
 // DOM Elements
 const searchForm = document.getElementById('search-form');
 const companyInput = document.getElementById('company-input');
@@ -140,7 +145,7 @@ async function performAnalysis(companyName) {
   }, 3800);
 
   try {
-    const response = await fetch('/api/analyze', {
+    const response = await fetch(`${API_BASE}/api/analyze`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

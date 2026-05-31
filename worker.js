@@ -1,5 +1,41 @@
 import { GoogleGenAI } from '@google/genai';
 
+// In-Memory Rate Limiting Cache for Cloudflare Workers (Per-Isolate)
+const ipCache = new Map();
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const limit = 15; // Maximum 15 requests per minute
+  const windowMs = 60000; // 1 minute window
+
+  // Clean up expired entries lazily to preserve memory
+  if (ipCache.size > 500) {
+    for (const [key, value] of ipCache.entries()) {
+      if (now > value.resetTime) {
+        ipCache.delete(key);
+      }
+    }
+  }
+
+  const clientData = ipCache.get(ip);
+  if (!clientData) {
+    ipCache.set(ip, { count: 1, resetTime: now + windowMs });
+    return false; // Not limited
+  }
+
+  if (now > clientData.resetTime) {
+    ipCache.set(ip, { count: 1, resetTime: now + windowMs });
+    return false; // Not limited
+  }
+
+  clientData.count++;
+  if (clientData.count > limit) {
+    return true; // Rate limited!
+  }
+
+  return false;
+}
+
 // Zero-dependency Google News RSS Parser compatible with Cloudflare Workers Edge Environment
 async function fetchGoogleNewsRSS(companyName) {
   try {
@@ -129,9 +165,25 @@ ${summaryBullets}
 
 export default {
   async fetch(request, env, ctx) {
+    const origin = request.headers.get('Origin') || '';
+    
+    // Whitelist official production domain and local development testing domains
+    const allowedOrigins = [
+      'https://drbrookskim.github.io',
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:8787',
+      'http://127.0.0.1:8787'
+    ];
+    
+    let allowOrigin = 'https://drbrookskim.github.io'; // Default fallback
+    if (allowedOrigins.includes(origin)) {
+      allowOrigin = origin;
+    }
+
     // Define robust CORS headers for Serverless Edge environment
     const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': allowOrigin,
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Max-Age': '86400',
@@ -140,6 +192,20 @@ export default {
     // Handle preflight requests
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
+    }
+
+    // 1. IP-Based Rate Limiting Check (Max 15 requests per minute)
+    const clientIP = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
+    if (checkRateLimit(clientIP)) {
+      return new Response(
+        JSON.stringify({ 
+          error: '너무 많은 요청이 발생했습니다. 잠시 후 다시 시도해 주십시오. (Rate Limit Exceeded)' 
+        }),
+        { 
+          status: 429, 
+          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+        }
+      );
     }
 
     const url = new URL(request.url);

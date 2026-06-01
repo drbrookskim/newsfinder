@@ -41,6 +41,10 @@
   --border-radius-sm: 6px;
   --glow-shadow: 0 0 25px rgba(139, 92, 246, 0.15);
   --transition-smooth: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Premium Font Variables */
+  --font-primary: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-secondary: 'Space Grotesk', sans-serif;
 }
 
 /* ==========================================================================
@@ -58,7 +62,7 @@
 body {
   background-color: var(--bg-dark);
   color: var(--text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-primary);
   min-height: 100vh;
   overflow-x: hidden;
   position: relative;
@@ -66,7 +70,7 @@ body {
 
 /* Premium Heading Accent */
 h1, h2, h3, h4, .brand-name, .glow-btn, .trending-tag-btn, .verified-badge {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-secondary);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -473,23 +477,29 @@ h1, h2, h3, h4, .brand-name, .glow-btn, .trending-tag-btn, .verified-badge {
 
 .hero-text {
   text-align: center;
-  max-width: 600px;
+  max-width: 800px; /* Expanded for full-width quote presence */
 }
 
 .hero-title {
-  font-size: 38px;
+  font-size: 42px; /* Slightly larger for premium space presence */
   font-weight: 800;
-  line-height: 1.25;
-  background: linear-gradient(to right, #ffffff, #d1d5db);
+  line-height: 1.2;
+  background: linear-gradient(135deg, #ffffff 10%, #00F2FE 55%, #8b5cf6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  margin-bottom: 8px;
+  margin-bottom: 14px;
+  letter-spacing: -0.03em;
 }
 
 .hero-subtitle {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.7;
+  font-weight: 400;
+  max-width: 720px;
+  margin: 0 auto;
+  letter-spacing: 0.01em;
+  opacity: 0.85;
 }
 
 .search-console {

@@ -568,24 +568,18 @@ function clearAllHistory() {
   renderHistoryUI();
 }
 
-// --- Browser Client-Side 100% Standalone Google News RSS Parser ---
-// Uses corsproxy.io as a free, open, public CORS proxy to parse actual live news in browser!
-async function fetchGoogleNewsRSSClient(companyName) {
+// Helper function to fetch a single feed on browser client side
+async function fetchSingleFeedClient(url) {
   try {
-    const encodedQuery = encodeURIComponent(companyName);
-    const rssUrl = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ko&gl=KR&ceid=KR:ko`;
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(rssUrl)}`;
-    
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
     console.log(`[CLIENT RSS] Attempting direct fetch via CORS proxy: ${proxyUrl}...`);
     const response = await fetch(proxyUrl);
     if (!response.ok) {
       console.warn(`[CLIENT RSS] CORS proxy returned status ${response.status}`);
-      return null;
+      return [];
     }
     
     const xmlText = await response.text();
-    
-    // Parse using regular expressions in browser (ultra-lightweight, no XML parser dependency)
     const items = [];
     const itemRegex = /<item>([\s\S]*?)<\/item>/g;
     let match;
@@ -617,9 +611,47 @@ async function fetchGoogleNewsRSSClient(companyName) {
         items.push({ title, url, publisher });
       }
     }
+    return items;
+  } catch (error) {
+    console.error('[CLIENT RSS] Error fetching single feed on client:', error.message);
+    return [];
+  }
+}
+
+// --- Browser Client-Side 100% Standalone Google News RSS Parser ---
+// Uses corsproxy.io as a free, open, public CORS proxy to parse actual live news in browser!
+async function fetchGoogleNewsRSSClient(companyName) {
+  try {
+    const encodedQuery = encodeURIComponent(companyName);
+    const hasEnglish = /[a-zA-Z]/.test(companyName);
     
-    console.log(`[CLIENT RSS] Successfully parsed ${items.length} live headlines on client.`);
-    return items.length > 0 ? items : null;
+    if (hasEnglish) {
+      console.log(`[CLIENT RSS] Company name "${companyName}" contains English. Fetching both Korean and US/English feeds...`);
+      const koUrl = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ko&gl=KR&ceid=KR:ko`;
+      const enUrl = `https://news.google.com/rss/search?q=${encodedQuery}&hl=en&gl=US&ceid=US:en`;
+      
+      const [koItems, enItems] = await Promise.all([
+        fetchSingleFeedClient(koUrl),
+        fetchSingleFeedClient(enUrl)
+      ]);
+      
+      // Interleave items up to a maximum of 8 articles total
+      const mergedItems = [];
+      const maxLength = Math.max(koItems.length, enItems.length);
+      
+      for (let i = 0; i < maxLength; i++) {
+        if (koItems[i]) mergedItems.push(koItems[i]);
+        if (enItems[i]) mergedItems.push(enItems[i]);
+        if (mergedItems.length >= 8) break;
+      }
+      
+      console.log(`[CLIENT RSS] Successfully parsed ${mergedItems.length} live headlines (merged Korean & English) on client.`);
+      return mergedItems.length > 0 ? mergedItems : null;
+    } else {
+      const url = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ko&gl=KR&ceid=KR:ko`;
+      const koItems = await fetchSingleFeedClient(url);
+      return koItems.length > 0 ? koItems : null;
+    }
   } catch (error) {
     console.error('[CLIENT RSS] Error during client RSS fetch:', error.message);
     return null;

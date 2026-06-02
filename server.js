@@ -29,12 +29,9 @@ if (apiKey) {
 }
 
 // Helper: Fetch real-time Google News RSS XML and parse using regex (zero-dependency)
-async function fetchGoogleNewsRSS(companyName) {
+// Helper to fetch a single RSS feed
+async function fetchSingleFeed(url) {
   try {
-    const encodedQuery = encodeURIComponent(companyName);
-    const url = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ko&gl=KR&ceid=KR:ko`;
-    
-    console.log(`[RSS Fetch] Requesting Google News feed for: ${companyName}...`);
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -42,29 +39,25 @@ async function fetchGoogleNewsRSS(companyName) {
     });
 
     if (!response.ok) {
-      console.warn(`[RSS Fetch] Google News RSS returned status ${response.status}`);
-      return null;
+      console.warn(`[RSS Fetch] Google News RSS returned status ${response.status} for ${url}`);
+      return [];
     }
     
     const xmlText = await response.text();
-    
-    // Parse items using regular expressions
     const items = [];
     const itemRegex = /<item>([\s\S]*?)<\/item>/g;
     let match;
     
     while ((match = itemRegex.exec(xmlText)) !== null && items.length < 8) {
       const itemContent = match[1];
-      
       const titleMatch = itemContent.match(/<title>([\s\S]*?)<\/title>/);
       const linkMatch = itemContent.match(/<link>([\s\S]*?)<\/link>/);
       
       if (titleMatch && linkMatch) {
-        // Clean CDATA wrappers if present
         let title = titleMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
         let url = linkMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
         
-        // Decode common XML entities
+        // Decode XML entities
         title = title
           .replace(/&amp;/g, '&')
           .replace(/&lt;/g, '<')
@@ -72,7 +65,6 @@ async function fetchGoogleNewsRSS(companyName) {
           .replace(/&quot;/g, '"')
           .replace(/&apos;/g, "'");
 
-        // Google News RSS titles usually end with " - Publisher Name"
         let publisher = '구글 뉴스';
         const pubIndex = title.lastIndexOf(' - ');
         if (pubIndex !== -1) {
@@ -87,9 +79,47 @@ async function fetchGoogleNewsRSS(companyName) {
         });
       }
     }
+    return items;
+  } catch (error) {
+    console.error('[RSS Fetch] Error fetching single feed:', error.message);
+    return [];
+  }
+}
+
+// Zero-dependency Google News RSS Parser fetching both Korean and English if needed
+async function fetchGoogleNewsRSS(companyName) {
+  try {
+    const encodedQuery = encodeURIComponent(companyName);
+    const hasEnglish = /[a-zA-Z]/.test(companyName);
     
-    console.log(`[RSS Fetch] Successfully parsed ${items.length} live articles from Google News.`);
-    return items.length > 0 ? items : null;
+    if (hasEnglish) {
+      console.log(`[RSS Fetch] Company name "${companyName}" contains English. Fetching both Korean and US/English feeds...`);
+      const koUrl = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ko&gl=KR&ceid=KR:ko`;
+      const enUrl = `https://news.google.com/rss/search?q=${encodedQuery}&hl=en&gl=US&ceid=US:en`;
+      
+      const [koItems, enItems] = await Promise.all([
+        fetchSingleFeed(koUrl),
+        fetchSingleFeed(enUrl)
+      ]);
+      
+      // Interleave items up to a maximum of 8 articles total
+      const mergedItems = [];
+      const maxLength = Math.max(koItems.length, enItems.length);
+      
+      for (let i = 0; i < maxLength; i++) {
+        if (koItems[i]) mergedItems.push(koItems[i]);
+        if (enItems[i]) mergedItems.push(enItems[i]);
+        if (mergedItems.length >= 8) break;
+      }
+      
+      console.log(`[RSS Fetch] Successfully parsed ${mergedItems.length} live articles (merged Korean & English).`);
+      return mergedItems.length > 0 ? mergedItems : null;
+    } else {
+      const url = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ko&gl=KR&ceid=KR:ko`;
+      console.log(`[RSS Fetch] Requesting Korean Google News feed for: ${companyName}...`);
+      const koItems = await fetchSingleFeed(url);
+      return koItems.length > 0 ? koItems : null;
+    }
   } catch (error) {
     console.error('[RSS Fetch] Error fetching Google News RSS:', error.message);
     return null;
@@ -145,9 +175,14 @@ app.post('/api/analyze', async (req, res) => {
     for (const model of modelsToTry) {
       try {
         console.log(`Attempting analysis using model: ${model}...`);
+        const hasEnglish = /[a-zA-Z]/.test(companyName);
+        const promptContents = hasEnglish
+          ? `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 ${companyName}에 대한 한국어 및 영어 실시간 중요 기업 뉴스를 모두 검색하고 종합적으로 분석해줘. 한국어 기사와 영어 기사(US/Global)를 둘 다 적극적으로 참고하여 균형있게 분석을 작성해야 해.`
+          : `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 ${companyName}의 최근 48시간 이내 중요 기업 뉴스를 실시간으로 검색하고 분석해줘.`;
+
         response = await genAIClient.models.generateContent({
           model: model,
-          contents: `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 ${companyName}의 최근 48시간 이내 중요 기업 뉴스를 실시간으로 검색하고 분석해줘.`,
+          contents: promptContents,
           config: {
             tools: [{ googleSearch: {} }], // Enable Real-time Google Search Grounding
             systemInstruction: `너는 주식 분석 플랫폼 'Signnith'의 금융 전문 AI 에이전트야.

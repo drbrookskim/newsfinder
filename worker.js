@@ -256,6 +256,8 @@ function expandSearchQuery(companyName) {
     '루시드': '"Lucid Group" OR "LCID"',
     'lucid': '"Lucid Group" OR "LCID"',
     'lcid': '"Lucid Group" OR "LCID"',
+    'poet': '"POET Technologies" OR "POET Technologies Inc" OR "POET"',
+    '포엣': '"POET Technologies" OR "POET Technologies Inc" OR "POET"',
   };
 
   if (mappings[lowerQuery]) {
@@ -652,7 +654,8 @@ export default {
               promptContents = `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 "${companyName}" (${expandedQuery})에 대한 실시간 중요 뉴스를 검색하고 분석해줘.\n이 기업은 미국/글로벌 시장 기업이므로, 실시간 구글 검색(googleSearch tool)을 실행할 때 반드시 영문 검색어(${expandedQuery})를 검색 쿼리로 사용하여 글로벌/미국 현지 뉴스 및 공식 기사(SEC filings, PR Newswire, Bloomberg, Reuters 등)를 우선 검색하고 영어 기사 위주로 분석에 적극 반영해야 해. 한국어 번역본이나 국내 요약 기사에 의존하지 마라.\n특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 다뤄줘.`;
             } else {
               promptContents = `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 "${companyName}" (${expandedQuery})에 대한 중요 기업 실시간 뉴스를 검색하고 분석해줘.
-특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 골고루 검색 반영해야 해. 한국어 기사와 영어 기사(US/Global)가 존재한다면 둘 다 적극적으로 참고해 사실 위주로 균형있게 분석을 작성해야 해.`;
+특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 골고루 검색 반영해야 해.`;
+            }
 
             response = await genAIClient.models.generateContent({
               model: model,

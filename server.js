@@ -249,6 +249,8 @@ function expandSearchQuery(companyName) {
     '루시드': '"Lucid Group" OR "LCID"',
     'lucid': '"Lucid Group" OR "LCID"',
     'lcid': '"Lucid Group" OR "LCID"',
+    'poet': '"POET Technologies" OR "POET Technologies Inc" OR "POET"',
+    '포엣': '"POET Technologies" OR "POET Technologies Inc" OR "POET"',
   };
 
   if (mappings[lowerQuery]) {

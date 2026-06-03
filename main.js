@@ -636,24 +636,178 @@ function expandSearchQuery(companyName) {
   const query = companyName.trim();
   const lowerQuery = query.toLowerCase();
   
-  if (lowerQuery.includes('american battery') || lowerQuery.includes('아메리칸 배터리') || lowerQuery === 'abat' || lowerQuery === 'abml') {
-    return '"American Battery Technology" OR "American Battery Technology Company" OR "ABAT" OR "ABML"';
+  const mappings = {
+    '아메리칸 배터리': '"American Battery Technology" OR "American Battery Technology Company" OR "ABAT" OR "ABML"',
+    'american battery': '"American Battery Technology" OR "American Battery Technology Company" OR "ABAT" OR "ABML"',
+    'abat': '"American Battery Technology" OR "American Battery Technology Company" OR "ABAT" OR "ABML"',
+    'abml': '"American Battery Technology" OR "American Battery Technology Company" OR "ABAT" OR "ABML"',
+    
+    '테슬라': '"Tesla" OR "Tesla Motors" OR "TSLA"',
+    'tesla': '"Tesla" OR "Tesla Motors" OR "TSLA"',
+    'tsla': '"Tesla" OR "Tesla Motors" OR "TSLA"',
+    
+    '엔비디아': '"NVIDIA" OR "NVDA"',
+    'nvidia': '"NVIDIA" OR "NVDA"',
+    'nvda': '"NVIDIA" OR "NVDA"',
+    
+    '애플': '"Apple" OR "Apple Inc" OR "AAPL"',
+    'apple': '"Apple" OR "Apple Inc" OR "AAPL"',
+    'aapl': '"Apple" OR "Apple Inc" OR "AAPL"',
+    
+    '삼성전자': '"삼성전자" OR "Samsung Electronics"',
+    '삼성': '"삼성전자" OR "Samsung Electronics"',
+    'samsung': '"삼성전자" OR "Samsung Electronics"',
+    
+    'sk하이닉스': '"SK하이닉스" OR "SK hynix"',
+    'sk hynix': '"SK하이닉스" OR "SK hynix"',
+    '하이닉스': '"SK하이닉스" OR "SK hynix"',
+
+    '마이크로소프트': '"Microsoft" OR "MSFT"',
+    'microsoft': '"Microsoft" OR "MSFT"',
+    'msft': '"Microsoft" OR "MSFT"',
+
+    '구글': '"Google" OR "Alphabet" OR "GOOG" OR "GOOGL"',
+    '알파벳': '"Google" OR "Alphabet" OR "GOOG" OR "GOOGL"',
+    'google': '"Google" OR "Alphabet" OR "GOOG" OR "GOOGL"',
+    'alphabet': '"Google" OR "Alphabet" OR "GOOG" OR "GOOGL"',
+    'goog': '"Google" OR "Alphabet" OR "GOOG" OR "GOOGL"',
+    'googl': '"Google" OR "Alphabet" OR "GOOG" OR "GOOGL"',
+
+    '아마존': '"Amazon" OR "Amazon.com" OR "AMZN"',
+    'amazon': '"Amazon" OR "Amazon.com" OR "AMZN"',
+    'amzn': '"Amazon" OR "Amazon.com" OR "AMZN"',
+
+    '메타': '"Meta Platforms" OR "Meta" OR "META"',
+    'meta': '"Meta Platforms" OR "Meta" OR "META"',
+
+    '넷플릭스': '"Netflix" OR "NFLX"',
+    'netflix': '"Netflix" OR "NFLX"',
+    'nflx': '"Netflix" OR "NFLX"',
+
+    '브로드컴': '"Broadcom" OR "AVGO"',
+    'broadcom': '"Broadcom" OR "AVGO"',
+    'avgo': '"Broadcom" OR "AVGO"',
+
+    'amd': '"Advanced Micro Devices" OR "AMD"',
+    
+    '퀄컴': '"Qualcomm" OR "QCOM"',
+    'qualcomm': '"Qualcomm" OR "QCOM"',
+    'qcom': '"Qualcomm" OR "QCOM"',
+
+    '인텔': '"Intel" OR "INTC"',
+    'intel': '"Intel" OR "INTC"',
+    'intc': '"Intel" OR "INTC"',
+
+    '코카콜라': '"Coca-Cola" OR "KO"',
+    'coca-cola': '"Coca-Cola" OR "KO"',
+    'ko': '"Coca-Cola" OR "KO"',
+
+    '펩시': '"PepsiCo" OR "PEP"',
+    'pepsi': '"PepsiCo" OR "PEP"',
+    'pepsico': '"PepsiCo" OR "PEP"',
+    'pep': '"PepsiCo" OR "PEP"',
+
+    '일라이릴리': '"Eli Lilly" OR "LLY"',
+    '일라이 릴리': '"Eli Lilly" OR "LLY"',
+    'eli lilly': '"Eli Lilly" OR "LLY"',
+    'lly': '"Eli Lilly" OR "LLY"',
+
+    '버크셔해서웨이': '"Berkshire Hathaway" OR "BRK.A" OR "BRK.B"',
+    '버크셔 해서웨이': '"Berkshire Hathaway" OR "BRK.A" OR "BRK.B"',
+    'berkshire hathaway': '"Berkshire Hathaway" OR "BRK.A" OR "BRK.B"',
+
+    'jp모건': '"JPMorgan Chase" OR "JPM"',
+    'jp모간': '"JPMorgan Chase" OR "JPM"',
+    'jpmorgan': '"JPMorgan Chase" OR "JPM"',
+    'jpm': '"JPMorgan Chase" OR "JPM"',
+
+    '디즈니': '"Disney" OR "Walt Disney" OR "DIS"',
+    'disney': '"Disney" OR "Walt Disney" OR "DIS"',
+    'dis': '"Disney" OR "Walt Disney" OR "DIS"',
+
+    '맥도날드': '"McDonald\'s" OR "MCD"',
+    'mcdonald': '"McDonald\'s" OR "MCD"',
+    'mcdonalds': '"McDonald\'s" OR "MCD"',
+    'mcd': '"McDonald\'s" OR "MCD"',
+
+    '스타벅스': '"Starbucks" OR "SBUX"',
+    'starbucks': '"Starbucks" OR "SBUX"',
+    'sbux': '"Starbucks" OR "SBUX"',
+
+    '코스트코': '"Costco" OR "COST"',
+    'costco': '"Costco" OR "COST"',
+    'cost': '"Costco" OR "COST"',
+
+    '월마트': '"Walmart" OR "WMT"',
+    'walmart': '"Walmart" OR "WMT"',
+    'wmt': '"Walmart" OR "WMT"',
+
+    '나이키': '"Nike" OR "NKE"',
+    'nike': '"Nike" OR "NKE"',
+    'nke': '"Nike" OR "NKE"',
+
+    '보잉': '"Boeing" OR "BA"',
+    'boeing': '"Boeing" OR "BA"',
+    'ba': '"Boeing" OR "BA"',
+
+    '엑슨모빌': '"ExxonMobil" OR "XOM"',
+    'exxonmobil': '"ExxonMobil" OR "XOM"',
+    'xom': '"ExxonMobil" OR "XOM"',
+
+    '화이자': '"Pfizer" OR "PFE"',
+    'pfizer': '"Pfizer" OR "PFE"',
+    'pfe': '"Pfizer" OR "PFE"',
+
+    '모더나': '"Moderna" OR "MRNA"',
+    'moderna': '"Moderna" OR "MRNA"',
+    'mrna': '"Moderna" OR "MRNA"',
+
+    '노보노디스크': '"Novo Nordisk" OR "NVO"',
+    '노보 노디스크': '"Novo Nordisk" OR "NVO"',
+    'novo nordisk': '"Novo Nordisk" OR "NVO"',
+    'nvo': '"Novo Nordisk" OR "NVO"',
+
+    'asml': '"ASML Holding" OR "ASML"',
+    'tsmc': '"TSMC" OR "TSM"',
+    
+    '슈퍼마이크로': '"Super Micro Computer" OR "SMCI"',
+    '슈퍼마이크로컴퓨터': '"Super Micro Computer" OR "SMCI"',
+    '슈마컴': '"Super Micro Computer" OR "SMCI"',
+    'smci': '"Super Micro Computer" OR "SMCI"',
+
+    '팔란티어': '"Palantir" OR "PLTR"',
+    '팰런티어': '"Palantir" OR "PLTR"',
+    'palantir': '"Palantir" OR "PLTR"',
+    'pltr': '"Palantir" OR "PLTR"',
+
+    '코인베이스': '"Coinbase" OR "COIN"',
+    'coinbase': '"Coinbase" OR "COIN"',
+    'coin': '"Coinbase" OR "COIN"',
+
+    '마이크론': '"Micron Technology" OR "MU"',
+    'micron': '"Micron Technology" OR "MU"',
+    'mu': '"Micron Technology" OR "MU"',
+
+    '리비안': '"Rivian" OR "RIVN"',
+    'rivian': '"Rivian" OR "RIVN"',
+    'rivn': '"Rivian" OR "RIVN"',
+
+    '루시드': '"Lucid Group" OR "LCID"',
+    'lucid': '"Lucid Group" OR "LCID"',
+    'lcid': '"Lucid Group" OR "LCID"',
+  };
+
+  if (mappings[lowerQuery]) {
+    return mappings[lowerQuery];
   }
-  if (lowerQuery === 'tesla' || lowerQuery === 'tsla' || lowerQuery === '테슬라') {
-    return '"Tesla" OR "Tesla Motors" OR "TSLA"';
+  
+  // Fuzzy fallback: check if lowerQuery is contained in mapping keys
+  for (const key of Object.keys(mappings)) {
+    if (lowerQuery.length > 2 && key.includes(lowerQuery)) {
+      return mappings[key];
+    }
   }
-  if (lowerQuery === 'nvidia' || lowerQuery === 'nvda' || lowerQuery === '엔비디아') {
-    return '"NVIDIA" OR "NVDA"';
-  }
-  if (lowerQuery === 'apple' || lowerQuery === 'aapl' || lowerQuery === '애플') {
-    return '"Apple" OR "Apple Inc" OR "AAPL"';
-  }
-  if (lowerQuery === 'samsung' || lowerQuery === '삼성전자' || lowerQuery === '삼성') {
-    return '"삼성전자" OR "Samsung Electronics"';
-  }
-  if (lowerQuery === 'sk하이닉스' || lowerQuery === 'sk hynix' || lowerQuery === '하이닉스') {
-    return '"SK하이닉스" OR "SK hynix"';
-  }
+
   return query;
 }
 
@@ -675,14 +829,11 @@ async function fetchGoogleNewsRSSClient(companyName) {
         fetchSingleFeedClient(enUrl)
       ]);
       
-      // Interleave items up to a maximum of 8 articles total
-      const mergedItems = [];
-      const maxLength = Math.max(koItems.length, enItems.length);
-      
-      for (let i = 0; i < maxLength; i++) {
-        if (koItems[i]) mergedItems.push(koItems[i]);
-        if (enItems[i]) mergedItems.push(enItems[i]);
+      // Prioritize English feeds first for foreign stocks, then fill with Korean feeds
+      const mergedItems = [...enItems];
+      for (let i = 0; i < koItems.length; i++) {
         if (mergedItems.length >= 8) break;
+        mergedItems.push(koItems[i]);
       }
       
       console.log(`[CLIENT RSS] Successfully parsed ${mergedItems.length} live headlines (merged Korean & English) on client.`);

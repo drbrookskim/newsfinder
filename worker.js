@@ -169,8 +169,12 @@ function resolveTickerSymbol(name) {
     'kb금융': '105560.KS', '신한금융': '055550.KS', 'shinhan': '055550.KS',
   };
   if (map[lower]) return map[lower];
+  // Partial match: key must be 4+ chars and appear as a whole word in the query
   for (const key of Object.keys(map)) {
-    if (lower.includes(key) || (key.length > 3 && key.includes(lower))) return map[key];
+    if (key.length >= 4) {
+      const wordBoundary = new RegExp(`(^|\\s|-)${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|\\s|-)`, 'i');
+      if (wordBoundary.test(lower)) return map[key];
+    }
   }
   return null;
 }

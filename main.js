@@ -45,6 +45,53 @@ const retryBtn = document.getElementById('retry-btn');
 const trendingTags = document.querySelectorAll('.trending-tag-btn');
 
 // --- Initialization ---
+
+// ── Real-time Stock Price Widget ──────────────────────────────────────────
+async function fetchAndDisplayStockPrice(companyName) {
+  const card = document.getElementById('stock-price-card');
+  if (!card) return;
+  card.classList.add('loading');
+  card.style.display = 'block';
+  try {
+    const endpoint = window.location.hostname === 'localhost' || window.location.port
+      ? `/api/stock-price?company=${encodeURIComponent(companyName)}`
+      : `/api/stock-price?company=${encodeURIComponent(companyName)}`;
+    const res = await fetch(endpoint);
+    if (!res.ok) throw new Error('fetch failed');
+    const data = await res.json();
+    card.classList.remove('loading');
+    if (!data.found || !data.price) { card.style.display = 'none'; return; }
+    
+    const currency = data.currency === 'KRW' ? '₩' : (data.currency === 'EUR' ? '€' : '$');
+    const isKRW = data.currency === 'KRW';
+    const fmt = v => isKRW
+      ? Number(v).toLocaleString('ko-KR', { maximumFractionDigits: 0 })
+      : Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    
+    document.getElementById('stock-ticker').textContent = data.ticker || '';
+    document.getElementById('stock-exchange').textContent = data.exchange || '';
+    document.getElementById('stock-price').textContent = `${currency}${fmt(data.price)}`;
+    
+    const changeEl = document.getElementById('stock-change');
+    const sign = data.change >= 0 ? '▲' : '▼';
+    const pct = Math.abs(data.changePercent).toFixed(2);
+    const absChg = Math.abs(data.change);
+    const absChgStr = isKRW ? absChg.toLocaleString('ko-KR', { maximumFractionDigits: 0 }) : absChg.toFixed(2);
+    changeEl.textContent = `${sign} ${currency}${absChgStr} (${data.change >= 0 ? '+' : ''}${data.changePercent.toFixed(2)}%)`;
+    changeEl.className = `stock-change ${data.change >= 0 ? 'positive' : 'negative'}`;
+    
+    document.getElementById('stock-prev-close').textContent = `${currency}${fmt(data.previousClose)}`;
+    
+    const stateEl = document.getElementById('stock-market-state');
+    const stateMap = { REGULAR: '정규장', PRE: '프리마켓', POST: '애프터마켓', CLOSED: '장마감' };
+    stateEl.textContent = stateMap[data.marketState] || data.marketState || '';
+    stateEl.className = `market-state-badge ${data.marketState === 'REGULAR' ? 'active' : ''}`;
+  } catch (e) {
+    console.warn('[Stock Price] fetch failed:', e.message);
+    if (card) card.style.display = 'none';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Clear legacy cached localStorage containing old sedaily URLs
   try {
@@ -232,6 +279,7 @@ async function performAnalysis(companyName) {
 
     // Swap panel to results
     switchPanel('results');
+    fetchAndDisplayStockPrice(companyName);
 
   } catch (error) {
     console.warn('Backend fetch failed. Attempting 100% client-side live RSS fallback...', error);
@@ -260,6 +308,7 @@ async function performAnalysis(companyName) {
       clearTimeout(stepTimeout2);
       
       switchPanel('results');
+      fetchAndDisplayStockPrice(companyName);
       return;
     } catch (fallbackErr) {
       console.error('[CLIENT FALLBACK] Client-side fallback failed:', fallbackErr);
@@ -797,6 +846,80 @@ function expandSearchQuery(companyName) {
     'lcid': '"Lucid Group" OR "LCID"',
     'poet': '"POET Technologies" OR "POET Technologies Inc" OR "POET"',
     '포엣': '"POET Technologies" OR "POET Technologies Inc" OR "POET"',
+
+    // Software / SaaS / DevOps / Cybersecurity
+    'gitlab': '"GitLab" OR "GTLB"',
+    'gtlb': '"GitLab" OR "GTLB"',
+    '깃랩': '"GitLab" OR "GTLB"',
+    'salesforce': '"Salesforce" OR "CRM"',
+    '세일즈포스': '"Salesforce" OR "CRM"',
+    'servicenow': '"ServiceNow" OR "NOW"',
+    '서비스나우': '"ServiceNow" OR "NOW"',
+    'workday': '"Workday" OR "WDAY"',
+    'wday': '"Workday" OR "WDAY"',
+    '워크데이': '"Workday" OR "WDAY"',
+    'snowflake': '"Snowflake" OR "SNOW"',
+    '스노우플레이크': '"Snowflake" OR "SNOW"',
+    'datadog': '"Datadog" OR "DDOG"',
+    'ddog': '"Datadog" OR "DDOG"',
+    '데이터독': '"Datadog" OR "DDOG"',
+    'crowdstrike': '"CrowdStrike" OR "CRWD"',
+    'crwd': '"CrowdStrike" OR "CRWD"',
+    '크라우드스트라이크': '"CrowdStrike" OR "CRWD"',
+    'hubspot': '"HubSpot" OR "HUBS"',
+    'hubs': '"HubSpot" OR "HUBS"',
+    '허브스팟': '"HubSpot" OR "HUBS"',
+    'atlassian': '"Atlassian" OR "TEAM"',
+    '아틀라시안': '"Atlassian" OR "TEAM"',
+    'mongodb': '"MongoDB" OR "MDB"',
+    'mdb': '"MongoDB" OR "MDB"',
+    '몽고디비': '"MongoDB" OR "MDB"',
+    'twilio': '"Twilio" OR "TWLO"',
+    'twlo': '"Twilio" OR "TWLO"',
+    '트윌리오': '"Twilio" OR "TWLO"',
+    'zoom': '"Zoom Video Communications" OR "ZM"',
+    'zm': '"Zoom Video Communications" OR "ZM"',
+    '줌': '"Zoom Video Communications" OR "ZM"',
+    'shopify': '"Shopify" OR "SHOP"',
+    '쇼피파이': '"Shopify" OR "SHOP"',
+    'okta': '"Okta" OR "OKTA"',
+    '옥타': '"Okta" OR "OKTA"',
+    'fortinet': '"Fortinet" OR "FTNT"',
+    'ftnt': '"Fortinet" OR "FTNT"',
+    '포티넷': '"Fortinet" OR "FTNT"',
+    'palo alto': '"Palo Alto Networks" OR "PANW"',
+    'panw': '"Palo Alto Networks" OR "PANW"',
+    '팔로알토': '"Palo Alto Networks" OR "PANW"',
+    'oracle': '"Oracle Corporation" OR "ORCL"',
+    'orcl': '"Oracle Corporation" OR "ORCL"',
+    '오라클': '"Oracle Corporation" OR "ORCL"',
+    'sap': '"SAP SE" OR "SAP"',
+    '에스에이피': '"SAP SE" OR "SAP"',
+    'adobe': '"Adobe" OR "ADBE"',
+    'adbe': '"Adobe" OR "ADBE"',
+    '어도비': '"Adobe" OR "ADBE"',
+    'intuit': '"Intuit" OR "INTU"',
+    'intu': '"Intuit" OR "INTU"',
+    '인튜이트': '"Intuit" OR "INTU"',
+    'autodesk': '"Autodesk" OR "ADSK"',
+    'adsk': '"Autodesk" OR "ADSK"',
+    '오토데스크': '"Autodesk" OR "ADSK"',
+    'veeva': '"Veeva Systems" OR "VEEV"',
+    'veev': '"Veeva Systems" OR "VEEV"',
+
+    // Finance / Fintech / Payments
+    'visa': '"Visa Inc" OR "V"',
+    'mastercard': '"Mastercard" OR "MA"',
+    '마스터카드': '"Mastercard" OR "MA"',
+    'paypal': '"PayPal" OR "PYPL"',
+    'pypl': '"PayPal" OR "PYPL"',
+    '페이팔': '"PayPal" OR "PYPL"',
+    'square': '"Block Inc" OR "SQ"',
+    'sq': '"Block Inc" OR "SQ"',
+    'affirm': '"Affirm" OR "AFRM"',
+    'afrm': '"Affirm" OR "AFRM"',
+    'robinhood': '"Robinhood Markets" OR "HOOD"',
+    'hood': '"Robinhood Markets" OR "HOOD"',
   };
 
   if (mappings[lowerQuery]) {
@@ -826,24 +949,43 @@ async function fetchGoogleNewsRSSClient(companyName) {
       const koUrl = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ko&gl=KR&ceid=KR:ko`;
       const enUrl = `https://news.google.com/rss/search?q=${encodedQuery}&hl=en&gl=US&ceid=US:en`;
       
-      const [koItems, enItems] = await Promise.all([
+      // Bing News via CORS proxy for browser environment
+      const bingRawUrl = `https://www.bing.com/news/search?q=${encodedQuery}&format=RSS`;
+      const bingUrl = `https://corsproxy.io/?${encodeURIComponent(bingRawUrl)}`;
+      
+      const [koItems, enItems, bingItems] = await Promise.all([
         fetchSingleFeedClient(koUrl),
-        fetchSingleFeedClient(enUrl)
+        fetchSingleFeedClient(enUrl),
+        fetchSingleFeedClient(bingUrl)
       ]);
       
-      // Prioritize English feeds first for foreign stocks, then fill with Korean feeds
-      const mergedItems = [...enItems];
-      for (let i = 0; i < koItems.length; i++) {
-        if (mergedItems.length >= 8) break;
-        mergedItems.push(koItems[i]);
+      // Priority: EN Google > Bing > KO Google; deduplicate by title prefix
+      const seen = new Set();
+      const mergedItems = [];
+      for (const item of [...enItems, ...bingItems, ...koItems]) {
+        if (mergedItems.length >= 12) break;
+        const key = item.title.slice(0, 50).toLowerCase();
+        if (!seen.has(key)) { seen.add(key); mergedItems.push(item); }
       }
       
-      console.log(`[CLIENT RSS] Successfully parsed ${mergedItems.length} live headlines (merged Korean & English) on client.`);
+      console.log(`[CLIENT Multi-Channel] ${mergedItems.length} articles — Google EN:${enItems.length}, Bing:${bingItems.length}, Google KO:${koItems.length}`);
       return mergedItems.length > 0 ? mergedItems : null;
     } else {
       const url = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ko&gl=KR&ceid=KR:ko`;
-      const koItems = await fetchSingleFeedClient(url);
-      return koItems.length > 0 ? koItems : null;
+      const bingKoRaw = `https://www.bing.com/news/search?q=${encodedQuery}&format=RSS&mkt=ko-KR`;
+      const bingKoUrl = `https://corsproxy.io/?${encodeURIComponent(bingKoRaw)}`;
+      const [koItems, bingItems] = await Promise.all([
+        fetchSingleFeedClient(url),
+        fetchSingleFeedClient(bingKoUrl)
+      ]);
+      const seen = new Set();
+      const mergedItems = [];
+      for (const item of [...koItems, ...bingItems]) {
+        if (mergedItems.length >= 10) break;
+        const key = item.title.slice(0, 50).toLowerCase();
+        if (!seen.has(key)) { seen.add(key); mergedItems.push(item); }
+      }
+      return mergedItems.length > 0 ? mergedItems : null;
     }
   } catch (error) {
     console.error('[CLIENT RSS] Error during client RSS fetch:', error.message);
@@ -862,15 +1004,23 @@ function generateClientMockData(companyName, liveNews) {
   // Helper to determine industry based on company name keywords
   function detectIndustry(name) {
     const lower = name.toLowerCase();
-    if (lower.includes('bio') || lower.includes('제약') || lower.includes('pharma') || lower.includes('therapeutics') || lower.includes('헬스')) {
-      return 'bio';
-    }
-    if (lower.includes('tech') || lower.includes('soft') || lower.includes('테크') || lower.includes('인공지능') || lower.includes('ai') || lower.includes('솔루션') || lower.includes('cloud')) {
-      return 'tech';
-    }
-    if (lower.includes('energy') || lower.includes('battery') || lower.includes('배터리') || lower.includes('에너지') || lower.includes('solar') || lower.includes('chemical') || lower.includes('화학')) {
-      return 'energy';
-    }
+    // Software / SaaS / Cloud / DevOps / Cybersecurity / Data (check first — broad category)
+    const techKeys = ['tech', 'soft', 'cloud', 'saas', 'data', 'git', 'dev', 'ops',
+      'platform', 'cyber', 'security', 'network', 'sys', 'lab', 'ware', 'code',
+      'digital', 'api', 'stack', 'web', 'app', 'ai', '테크', '인공지능', '솔루션',
+      '시스템', '소프트', '클라우드', '플랫폼'];
+    if (techKeys.some(k => lower.includes(k))) return 'tech';
+    // Bio / Pharma / Healthcare
+    const bioKeys = ['bio', '제약', 'pharma', 'therapeutics', '헬스', 'health', 'medical', 'gene', 'clinical'];
+    if (bioKeys.some(k => lower.includes(k))) return 'bio';
+    // Energy / Battery / Materials / Mining
+    const energyKeys = ['energy', 'battery', '배터리', '에너지', 'solar', 'chemical',
+      '화학', 'material', 'mining', 'oil', 'gas', 'mineral', 'power'];
+    if (energyKeys.some(k => lower.includes(k))) return 'energy';
+    // Finance / Banking / Insurance / Fintech
+    const financeKeys = ['bank', 'finance', 'financial', 'invest', 'fund', 'payment',
+      'capital', 'insurance', 'asset', '금융', '은행', '보험', '증권'];
+    if (financeKeys.some(k => lower.includes(k))) return 'finance';
     return 'general';
   }
 
@@ -1008,10 +1158,10 @@ function generateClientMockData(companyName, liveNews) {
 - **미래 성장 프로젝트 및 동력 (Projects)**: 미래 성장의 돌파구를 마련하기 위한 중장기 R&D 신성장 포트폴리오 다각화 프로젝트가 본격 가시화 중입니다.`;
     } else {
       // Direct offline/mock generation with highly realistic industry template when RSS also fails
-      let financialFact = `원자재 조달 비용의 정밀 제어 및 운영 구조 효율화 작업을 단행하여 분기 **영업이익률 및 영업현금흐름 회복** 세가 지속적으로 강화되는 추세입니다.`;
-      let operationFact = `핵심 생산 거점의 설비 현대화 및 품질 관리 수율 극대화를 통해 주력 제품군의 **공급 안정성 및 제조 마진**을 성공적으로 향상시켰습니다.`;
-      let regulatoryFact = `시장 친화적 정책 흐름에 발맞추어 업계 필수 환경/보안 관련 글로벌 **인허가 규격 승인**을 정상 획득하여 해외 진출 걸림돌을 제거했습니다.`;
-      let projectFact = `디지털 고도화 및 기술 포트폴리오 경쟁력 확보를 목표로 하는 중장기 **미래 기술 R&D 로드맵**이 발표되어 시제품 검증 단계에 진입했습니다.`;
+      let financialFact = `글로벌 수요 회복 및 비즈니스 구조 효율화에 힘입어 분기 **영업이익률 및 영업현금흐름**이 지속적으로 개선되는 추세입니다.`;
+      let operationFact = `핵심 사업 부문의 운영 효율성 강화 및 서비스·제품 경쟁력 제고를 통해 주력 시장에서의 **점유율 및 고객 만족도**를 성공적으로 향상시켰습니다.`;
+      let regulatoryFact = `시장 친화적 정책 흐름에 발맞추어 업계 필수 글로벌 **규제 준수 및 인허가 요건**을 정상 충족하여 해외 진출 경쟁력을 강화했습니다.`;
+      let projectFact = `차세대 성장 동력 확보를 목표로 하는 중장기 **신사업 R&D 로드맵**이 발표되어 시장 검증 단계에 본격 진입했습니다.`;
 
       if (industry === 'bio') {
         financialFact = `성공적인 해외 판권 라이선스 아웃(L/O) 계약금 및 주요 마일스톤의 순차적 인식에 힘입어 **재무 안정성 수준**이 풍부하게 확충되었습니다.`;
@@ -1034,6 +1184,13 @@ function generateClientMockData(companyName, liveNews) {
         projectFact = `차세대 고체 전해질 대량 합성 공정 개발 완료 및 글로벌 완성차 업체 공급을 위한 **공동 실증 설비 구축 프로젝트**를 시작했습니다.`;
         dynamicRisk = '핵심 원소재 수급의 지정학적 리스크 및 정부 보조금 지급 가이드라인 개정 시 단기 유동성이 다소 압박을 받을 소지가 상존합니다.';
         dynamicOpportunity = '24시간 풀가동되는 친환경 재활용 인프라 양산 안정화와 고체 전해질 독자 상용화에 힘입어 중장기 미국 본토 배터리 공급망 핵심 수혜 가치가 극대화될 전망입니다.';
+      } else if (industry === 'finance') {
+        financialFact = `금리 환경 변화에 선제 대응한 포트폴리오 재편으로 **순이자마진(NIM) 및 수수료 수익** 안정성이 강화되고 있습니다.`;
+        operationFact = `디지털 뱅킹 전환 가속 및 핀테크 파트너십을 통해 플랫폼 사용자 수와 **거래 처리 건수가 전분기 대비 증가**했습니다.`;
+        regulatoryFact = `금융당국의 **건전성 감독 기준** 충족 및 자본적정성 비율(BIS)을 상회하는 수준을 유지하며 안정적 영업 기반을 확보했습니다.`;
+        projectFact = `AI 기반 신용 심사 자동화 및 **디지털 결제 인프라 고도화 프로젝트**가 파일럿 성과를 바탕으로 전면 도입 단계에 진입했습니다.`;
+        dynamicRisk = '금리 변동성 확대 및 부실채권(NPL) 증가 우려 시 대손충당금 적립 부담이 수익성을 일부 제한할 수 있으며, 핀테크 경쟁 심화에 따른 고객 이탈 리스크도 상존합니다.';
+        dynamicOpportunity = '디지털 전환 완성에 따른 비용 효율화와 비이자 수익 다변화가 본격화될 경우, 장기 ROE 개선과 함께 프리미엄 밸류에이션이 정당화될 전망입니다.';
       }
 
       summaryBullets = `- **재무 실적 및 성과 (Financials)**: ${financialFact}

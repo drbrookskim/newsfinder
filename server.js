@@ -85,6 +85,156 @@ async function fetchSingleFeed(url) {
   }
 }
 
+
+// ── Ticker Symbol Resolver ─────────────────────────────────────────────────
+function resolveTickerSymbol(name) {
+  const lower = name.trim().toLowerCase();
+  const map = {
+    'abat': 'ABAT', 'abml': 'ABAT', 'american battery': 'ABAT', '아메리칸 배터리': 'ABAT',
+    'tsla': 'TSLA', 'tesla': 'TSLA', '테슬라': 'TSLA',
+    'nvda': 'NVDA', 'nvidia': 'NVDA', '엔비디아': 'NVDA',
+    'aapl': 'AAPL', 'apple': 'AAPL', '애플': 'AAPL',
+    'msft': 'MSFT', 'microsoft': 'MSFT', '마이크로소프트': 'MSFT',
+    'goog': 'GOOGL', 'googl': 'GOOGL', 'google': 'GOOGL', 'alphabet': 'GOOGL', '구글': 'GOOGL', '알파벳': 'GOOGL',
+    'amzn': 'AMZN', 'amazon': 'AMZN', '아마존': 'AMZN',
+    'meta': 'META', '메타': 'META',
+    'nflx': 'NFLX', 'netflix': 'NFLX', '넷플릭스': 'NFLX',
+    'avgo': 'AVGO', 'broadcom': 'AVGO', '브로드컴': 'AVGO',
+    'amd': 'AMD',
+    'qcom': 'QCOM', 'qualcomm': 'QCOM', '퀄컴': 'QCOM',
+    'intc': 'INTC', 'intel': 'INTC', '인텔': 'INTC',
+    'ko': 'KO', 'coca-cola': 'KO', '코카콜라': 'KO',
+    'pep': 'PEP', 'pepsi': 'PEP', 'pepsico': 'PEP', '펩시': 'PEP',
+    'wmt': 'WMT', 'walmart': 'WMT', '월마트': 'WMT',
+    'cost': 'COST', 'costco': 'COST', '코스트코': 'COST',
+    'nke': 'NKE', 'nike': 'NKE',
+    'ba': 'BA', 'boeing': 'BA', '보잉': 'BA',
+    'xom': 'XOM', 'exxonmobil': 'XOM', '엑슨모빌': 'XOM',
+    'pfe': 'PFE', 'pfizer': 'PFE', '화이자': 'PFE',
+    'mrna': 'MRNA', 'moderna': 'MRNA', '모더나': 'MRNA',
+    'nvo': 'NVO', 'novo nordisk': 'NVO', '노보노디스크': 'NVO',
+    'asml': 'ASML',
+    'tsm': 'TSM', 'tsmc': 'TSM',
+    'smci': 'SMCI', '슈퍼마이크로': 'SMCI',
+    'pltr': 'PLTR', 'palantir': 'PLTR', '팔란티어': 'PLTR',
+    'coin': 'COIN', 'coinbase': 'COIN', '코인베이스': 'COIN',
+    'mu': 'MU', 'micron': 'MU', '마이크론': 'MU',
+    'rivn': 'RIVN', 'rivian': 'RIVN', '리비안': 'RIVN',
+    'lcid': 'LCID', 'lucid': 'LCID', '루시드': 'LCID',
+    'poet': 'POET', '포엣': 'POET',
+    'gtlb': 'GTLB', 'gitlab': 'GTLB', '깃랩': 'GTLB',
+    'crm': 'CRM', 'salesforce': 'CRM', '세일즈포스': 'CRM',
+    'now': 'NOW', 'servicenow': 'NOW', '서비스나우': 'NOW',
+    'wday': 'WDAY', 'workday': 'WDAY', '워크데이': 'WDAY',
+    'snow': 'SNOW', 'snowflake': 'SNOW', '스노우플레이크': 'SNOW',
+    'ddog': 'DDOG', 'datadog': 'DDOG', '데이터독': 'DDOG',
+    'crwd': 'CRWD', 'crowdstrike': 'CRWD', '크라우드스트라이크': 'CRWD',
+    'hubs': 'HUBS', 'hubspot': 'HUBS', '허브스팟': 'HUBS',
+    'team': 'TEAM', 'atlassian': 'TEAM', '아틀라시안': 'TEAM',
+    'mdb': 'MDB', 'mongodb': 'MDB', '몽고디비': 'MDB',
+    'twlo': 'TWLO', 'twilio': 'TWLO', '트윌리오': 'TWLO',
+    'zm': 'ZM', 'zoom': 'ZM', '줌': 'ZM',
+    'shop': 'SHOP', 'shopify': 'SHOP', '쇼피파이': 'SHOP',
+    'okta': 'OKTA', '옥타': 'OKTA',
+    'ftnt': 'FTNT', 'fortinet': 'FTNT', '포티넷': 'FTNT',
+    'panw': 'PANW', 'palo alto': 'PANW', '팔로알토': 'PANW',
+    'orcl': 'ORCL', 'oracle': 'ORCL', '오라클': 'ORCL',
+    'sap': 'SAP', '에스에이피': 'SAP',
+    'adbe': 'ADBE', 'adobe': 'ADBE', '어도비': 'ADBE',
+    'intu': 'INTU', 'intuit': 'INTU', '인튜이트': 'INTU',
+    'adsk': 'ADSK', 'autodesk': 'ADSK', '오토데스크': 'ADSK',
+    'v': 'V', 'visa': 'V',
+    'ma': 'MA', 'mastercard': 'MA', '마스터카드': 'MA',
+    'pypl': 'PYPL', 'paypal': 'PYPL', '페이팔': 'PYPL',
+    'sq': 'SQ', 'square': 'SQ',
+    'afrm': 'AFRM', 'affirm': 'AFRM',
+    'hood': 'HOOD', 'robinhood': 'HOOD',
+    // Korean KRX stocks (.KS suffix)
+    '삼성전자': '005930.KS', '삼성': '005930.KS', 'samsung': '005930.KS',
+    'sk하이닉스': '000660.KS', '하이닉스': '000660.KS', 'hynix': '000660.KS', 'sk hynix': '000660.KS',
+    '현대차': '005380.KS', '현대자동차': '005380.KS', 'hyundai': '005380.KS',
+    '기아': '000270.KS', 'kia': '000270.KS',
+    '카카오': '035720.KS', 'kakao': '035720.KS',
+    '네이버': '035420.KS',
+    '셀트리온': '068270.KS', 'celltrion': '068270.KS',
+    '포스코': '005490.KS', 'posco': '005490.KS',
+    'lg전자': '066570.KS', 'lg화학': '051910.KS',
+    'kb금융': '105560.KS', '신한금융': '055550.KS', 'shinhan': '055550.KS',
+  };
+  if (map[lower]) return map[lower];
+  for (const key of Object.keys(map)) {
+    if (lower.includes(key) || (key.length > 3 && key.includes(lower))) return map[key];
+  }
+  return null;
+}
+
+// ── Yahoo Finance Real-Time Price Fetcher ──────────────────────────────────
+async function fetchStockPrice(ticker) {
+  const urls = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`
+  ];
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Origin': 'https://finance.yahoo.com',
+          'Referer': 'https://finance.yahoo.com/'
+        }
+      });
+      if (!response.ok) continue;
+      const data = await response.json();
+      const meta = data?.chart?.result?.[0]?.meta;
+      if (!meta?.regularMarketPrice) continue;
+      const previousClose = meta.chartPreviousClose ?? meta.regularMarketPreviousClose ?? meta.previousClose ?? meta.regularMarketPrice;
+      const currentPrice = meta.regularMarketPrice;
+      const change = currentPrice - previousClose;
+      const changePercent = previousClose ? (change / previousClose) * 100 : 0;
+      return {
+        ticker: meta.symbol || ticker,
+        exchange: meta.fullExchangeName || meta.exchangeName || '',
+        price: currentPrice,
+        previousClose,
+        change,
+        changePercent,
+        currency: meta.currency || 'USD',
+        marketState: meta.marketState || 'CLOSED'
+      };
+    } catch (e) {
+      console.error(`[Yahoo Finance] ${ticker}:`, e.message);
+    }
+  }
+  return null;
+}
+
+// ── Naver News API Fetcher ─────────────────────────────────────────────────
+async function fetchNaverNews(query, naverClientId, naverClientSecret) {
+  if (!naverClientId || !naverClientSecret) return [];
+  try {
+    const url = `https://openapi.naver.com/v1/search/news.json?query=${encodeURIComponent(query)}&display=10&sort=date`;
+    const res = await fetch(url, {
+      headers: {
+        'X-Naver-Client-Id': naverClientId,
+        'X-Naver-Client-Secret': naverClientSecret,
+        'User-Agent': 'SignnithNewsFinder/1.0'
+      }
+    });
+    if (!res.ok) { console.warn('[Naver News] Status:', res.status); return []; }
+    const json = await res.json();
+    return (json.items || []).slice(0, 8).map(item => ({
+      title: item.title.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'"),
+      url: item.link || item.originallink || '',
+      publisher: '네이버 뉴스'
+    }));
+  } catch (e) {
+    console.error('[Naver News] Error:', e.message);
+    return [];
+  }
+}
+
 // Helper: Smart query expansion for specific companies and stock tickers to filter corporate context
 function expandSearchQuery(companyName) {
   const query = companyName.trim();
@@ -251,6 +401,80 @@ function expandSearchQuery(companyName) {
     'lcid': '"Lucid Group" OR "LCID"',
     'poet': '"POET Technologies" OR "POET Technologies Inc" OR "POET"',
     '포엣': '"POET Technologies" OR "POET Technologies Inc" OR "POET"',
+
+    // Software / SaaS / DevOps / Cybersecurity
+    'gitlab': '"GitLab" OR "GTLB"',
+    'gtlb': '"GitLab" OR "GTLB"',
+    '깃랩': '"GitLab" OR "GTLB"',
+    'salesforce': '"Salesforce" OR "CRM"',
+    '세일즈포스': '"Salesforce" OR "CRM"',
+    'servicenow': '"ServiceNow" OR "NOW"',
+    '서비스나우': '"ServiceNow" OR "NOW"',
+    'workday': '"Workday" OR "WDAY"',
+    'wday': '"Workday" OR "WDAY"',
+    '워크데이': '"Workday" OR "WDAY"',
+    'snowflake': '"Snowflake" OR "SNOW"',
+    '스노우플레이크': '"Snowflake" OR "SNOW"',
+    'datadog': '"Datadog" OR "DDOG"',
+    'ddog': '"Datadog" OR "DDOG"',
+    '데이터독': '"Datadog" OR "DDOG"',
+    'crowdstrike': '"CrowdStrike" OR "CRWD"',
+    'crwd': '"CrowdStrike" OR "CRWD"',
+    '크라우드스트라이크': '"CrowdStrike" OR "CRWD"',
+    'hubspot': '"HubSpot" OR "HUBS"',
+    'hubs': '"HubSpot" OR "HUBS"',
+    '허브스팟': '"HubSpot" OR "HUBS"',
+    'atlassian': '"Atlassian" OR "TEAM"',
+    '아틀라시안': '"Atlassian" OR "TEAM"',
+    'mongodb': '"MongoDB" OR "MDB"',
+    'mdb': '"MongoDB" OR "MDB"',
+    '몽고디비': '"MongoDB" OR "MDB"',
+    'twilio': '"Twilio" OR "TWLO"',
+    'twlo': '"Twilio" OR "TWLO"',
+    '트윌리오': '"Twilio" OR "TWLO"',
+    'zoom': '"Zoom Video Communications" OR "ZM"',
+    'zm': '"Zoom Video Communications" OR "ZM"',
+    '줌': '"Zoom Video Communications" OR "ZM"',
+    'shopify': '"Shopify" OR "SHOP"',
+    '쇼피파이': '"Shopify" OR "SHOP"',
+    'okta': '"Okta" OR "OKTA"',
+    '옥타': '"Okta" OR "OKTA"',
+    'fortinet': '"Fortinet" OR "FTNT"',
+    'ftnt': '"Fortinet" OR "FTNT"',
+    '포티넷': '"Fortinet" OR "FTNT"',
+    'palo alto': '"Palo Alto Networks" OR "PANW"',
+    'panw': '"Palo Alto Networks" OR "PANW"',
+    '팔로알토': '"Palo Alto Networks" OR "PANW"',
+    'oracle': '"Oracle Corporation" OR "ORCL"',
+    'orcl': '"Oracle Corporation" OR "ORCL"',
+    '오라클': '"Oracle Corporation" OR "ORCL"',
+    'sap': '"SAP SE" OR "SAP"',
+    '에스에이피': '"SAP SE" OR "SAP"',
+    'adobe': '"Adobe" OR "ADBE"',
+    'adbe': '"Adobe" OR "ADBE"',
+    '어도비': '"Adobe" OR "ADBE"',
+    'intuit': '"Intuit" OR "INTU"',
+    'intu': '"Intuit" OR "INTU"',
+    '인튜이트': '"Intuit" OR "INTU"',
+    'autodesk': '"Autodesk" OR "ADSK"',
+    'adsk': '"Autodesk" OR "ADSK"',
+    '오토데스크': '"Autodesk" OR "ADSK"',
+    'veeva': '"Veeva Systems" OR "VEEV"',
+    'veev': '"Veeva Systems" OR "VEEV"',
+
+    // Finance / Fintech / Payments
+    'visa': '"Visa Inc" OR "V"',
+    'mastercard': '"Mastercard" OR "MA"',
+    '마스터카드': '"Mastercard" OR "MA"',
+    'paypal': '"PayPal" OR "PYPL"',
+    'pypl': '"PayPal" OR "PYPL"',
+    '페이팔': '"PayPal" OR "PYPL"',
+    'square': '"Block Inc" OR "SQ"',
+    'sq': '"Block Inc" OR "SQ"',
+    'affirm': '"Affirm" OR "AFRM"',
+    'afrm': '"Affirm" OR "AFRM"',
+    'robinhood': '"Robinhood Markets" OR "HOOD"',
+    'hood': '"Robinhood Markets" OR "HOOD"',
   };
 
   if (mappings[lowerQuery]) {
@@ -279,25 +503,45 @@ async function fetchGoogleNewsRSS(companyName) {
       const koUrl = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ko&gl=KR&ceid=KR:ko`;
       const enUrl = `https://news.google.com/rss/search?q=${encodedQuery}&hl=en&gl=US&ceid=US:en`;
       
-      const [koItems, enItems] = await Promise.all([
+      // Multi-channel: Google EN + Bing + Google KO
+      const bingUrl = `https://www.bing.com/news/search?q=${encodedQuery}&format=RSS`;
+      
+      const [koItems, enItems, bingItems] = await Promise.all([
         fetchSingleFeed(koUrl),
-        fetchSingleFeed(enUrl)
+        fetchSingleFeed(enUrl),
+        fetchSingleFeed(bingUrl)
       ]);
       
-      // Prioritize English feeds first for foreign stocks, then fill with Korean feeds
-      const mergedItems = [...enItems];
-      for (let i = 0; i < koItems.length; i++) {
-        if (mergedItems.length >= 8) break;
-        mergedItems.push(koItems[i]);
+      // Priority: EN Google > Bing > KO Google; deduplicate by title prefix
+      const seen = new Set();
+      const mergedItems = [];
+      for (const item of [...enItems, ...bingItems, ...koItems]) {
+        if (mergedItems.length >= 12) break;
+        const key = item.title.slice(0, 50).toLowerCase();
+        if (!seen.has(key)) { seen.add(key); mergedItems.push(item); }
       }
       
-      console.log(`[RSS Fetch] Successfully parsed ${mergedItems.length} live articles (merged Korean & English).`);
+      console.log(`[RSS Multi-Channel] ${mergedItems.length} articles — Google EN:${enItems.length}, Bing:${bingItems.length}, Google KO:${koItems.length}`);
       return mergedItems.length > 0 ? mergedItems : null;
     } else {
       const url = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ko&gl=KR&ceid=KR:ko`;
-      console.log(`[RSS Fetch] Requesting Korean Google News feed for: ${companyName}...`);
-      const koItems = await fetchSingleFeed(url);
-      return koItems.length > 0 ? koItems : null;
+      const bingKoUrl = `https://www.bing.com/news/search?q=${encodedQuery}&format=RSS&mkt=ko-KR`;
+      const naverClientId = process.env.NAVER_CLIENT_ID;
+      const naverClientSecret = process.env.NAVER_CLIENT_SECRET;
+      console.log(`[RSS Fetch] Korean query — Google KO + Bing KO${naverClientId ? ' + Naver' : ''} for: ${companyName}...`);
+      const [koItems, bingItems, naverItems] = await Promise.all([
+        fetchSingleFeed(url),
+        fetchSingleFeed(bingKoUrl),
+        fetchNaverNews(companyName, naverClientId, naverClientSecret)
+      ]);
+      const seen = new Set();
+      const mergedItems = [];
+      for (const item of [...koItems, ...naverItems, ...bingItems]) {
+        if (mergedItems.length >= 12) break;
+        const key = item.title.slice(0, 50).toLowerCase();
+        if (!seen.has(key)) { seen.add(key); mergedItems.push(item); }
+      }
+      return mergedItems.length > 0 ? mergedItems : null;
     }
   } catch (error) {
     console.error('[RSS Fetch] Error fetching Google News RSS:', error.message);
@@ -358,13 +602,34 @@ app.post('/api/analyze', async (req, res) => {
         const hasEnglish = /[a-zA-Z]/.test(expandedQuery);
         
         let promptContents = '';
+        
+        // Detect industry to add specific analytical context to prompt
+        const industryLower = (companyName + ' ' + expandedQuery).toLowerCase();
+        const isTechCompany = ['tech', 'soft', 'cloud', 'saas', 'data', 'git', 'dev', 'ops',
+          'platform', 'cyber', 'security', 'network', 'sys', 'lab', 'ware', 'code',
+          'digital', 'api', 'gitlab', 'salesforce', 'servicenow', 'workday', 'snowflake',
+          'datadog', 'crowdstrike', 'hubspot', 'atlassian', 'mongodb', 'adobe', 'oracle',
+          'sap', 'autodesk', 'zoom', 'shopify', 'okta', 'fortinet'].some(k => industryLower.includes(k));
+        const isFinanceCompany = ['bank', 'finance', 'financial', 'invest', 'fund', 'payment',
+          'capital', 'insurance', 'asset', 'visa', 'mastercard', 'paypal'].some(k => industryLower.includes(k));
+        const isBioCompany = ['bio', 'pharma', 'therapeutics', 'health', 'medical', 'gene', 'clinical'].some(k => industryLower.includes(k));
+        
+        let industryHint = '';
+        if (isTechCompany) {
+          industryHint = '\n[업종 지침] 이 기업은 소프트웨어/SaaS/클라우드/테크 기업이므로, 분석 시 ARR(연간 반복 매출), NRR(순 매출 유지율), 구독 매출 성장률, 플랫폼 MAU·DAU, 클라우드 매출 성장, 총마진(Gross Margin), 영업비용(OpEx) 등 소프트웨어 업계 KPI를 중심으로 분석해야 하며, 제조업 원자재, 공장 시설, 생산 가동률 등의 내용은 절대 포함하지 마라.';
+        } else if (isFinanceCompany) {
+          industryHint = '\n[업종 지침] 이 기업은 금융/핀테크 기업이므로, NIM(순이자마진), BIS비율, ROE, 대출 성장률, 수수료 수익, AUM 등 금융업 핵심 지표를 중심으로 분석해야 한다.';
+        } else if (isBioCompany) {
+          industryHint = '\n[업종 지침] 이 기업은 바이오/제약 기업이므로, 임상 파이프라인 진행 상황, FDA/EMA 인허가 단계, 매출 로열티 및 라이선스 수익, R&D 지출 등을 중심으로 분석해야 한다.';
+        }
+        
         if (hasEnglish) {
           promptContents = `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 "${companyName}" (${expandedQuery})에 대한 실시간 중요 뉴스를 검색하고 분석해줘.
 이 기업은 미국/글로벌 시장 기업이므로, 실시간 구글 검색(googleSearch tool)을 실행할 때 반드시 영문 검색어(${expandedQuery})를 검색 쿼리로 사용하여 글로벌/미국 현지 뉴스 및 공식 기사(SEC filings, PR Newswire, Bloomberg, Reuters 등)를 우선 검색하고 영어 기사 위주로 분석에 적극 반영해야 해. 한국어 번역본이나 국내 요약 기사에 의존하지 마라.
-특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 다뤄줘.`;
+특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 다뤄줘.${industryHint}`;
         } else {
           promptContents = `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 "${companyName}" (${expandedQuery})에 대한 중요 기업 실시간 뉴스를 검색하고 분석해줘.
-특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 골고루 검색 반영해야 해.`;
+특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 골고루 검색 반영해야 해.${industryHint}`;
         }
 
         response = await genAIClient.models.generateContent({
@@ -380,7 +645,7 @@ app.post('/api/analyze', async (req, res) => {
 ## 1. 핵심 뉴스 요약
 아래의 4대 핵심 금융 정보 차원을 기준으로 실시간 검색 결과에서 추출한 팩트들을 구체적 수치 및 고유 대상을 포함해 자세한 불릿 포인트로 작성하고, 가장 중요한 키워드나 수치는 **굵게(Bold)** 표시해라:
 - **재무 실적 및 성과 (Financials)**: 매출액, 영업이익, 마진율 변동, 실적 전망 등 정량적 성과 지표 요약.
-- **핵심 사업 및 운영 현황 (Operations)**: 주요 생산 시설 가동률, 서비스/제품 생산성, 상업화 진척 상황 및 대형 공급 계약 요약.
+- **핵심 사업 및 운영 현황 (Operations)**: 플랫폼·서비스·제품의 운영 효율성(이용자 수, 구독 성장률, 가동률, 매출 원가율 등), 주요 계약·파트너십 확장 현황, 상업화 진척 요약. 소프트웨어 기업이라면 ARR, NRR, MAU 등 SaaS 지표를 중심으로 서술해라.
 - **정책, 규제 및 계약 (Regulations & Contracts)**: 정부 보조금/지원금 수혜 및 변동, 인허가 취득 현황, 소송 또는 규제적 위험 요소 요약.
 - **미래 성장 프로젝트 및 동력 (Projects)**: 연구개발(R&D) 마일스톤, 신공장 착공, 설비 투자(CAPEX) 및 신사업 로드맵 요약.
 
@@ -455,15 +720,23 @@ async function getMockData(companyName) {
   // Helper to determine industry based on company name keywords
   function detectIndustry(name) {
     const lower = name.toLowerCase();
-    if (lower.includes('bio') || lower.includes('제약') || lower.includes('pharma') || lower.includes('therapeutics') || lower.includes('헬스')) {
-      return 'bio';
-    }
-    if (lower.includes('tech') || lower.includes('soft') || lower.includes('테크') || lower.includes('인공지능') || lower.includes('ai') || lower.includes('솔루션') || lower.includes('cloud')) {
-      return 'tech';
-    }
-    if (lower.includes('energy') || lower.includes('battery') || lower.includes('배터리') || lower.includes('에너지') || lower.includes('solar') || lower.includes('chemical') || lower.includes('화학')) {
-      return 'energy';
-    }
+    // Software / SaaS / Cloud / DevOps / Cybersecurity / Data (check first — broad category)
+    const techKeys = ['tech', 'soft', 'cloud', 'saas', 'data', 'git', 'dev', 'ops',
+      'platform', 'cyber', 'security', 'network', 'sys', 'lab', 'ware', 'code',
+      'digital', 'api', 'stack', 'web', 'app', 'ai', '테크', '인공지능', '솔루션',
+      '시스템', '소프트', '클라우드', '플랫폼'];
+    if (techKeys.some(k => lower.includes(k))) return 'tech';
+    // Bio / Pharma / Healthcare
+    const bioKeys = ['bio', '제약', 'pharma', 'therapeutics', '헬스', 'health', 'medical', 'gene', 'clinical'];
+    if (bioKeys.some(k => lower.includes(k))) return 'bio';
+    // Energy / Battery / Materials / Mining
+    const energyKeys = ['energy', 'battery', '배터리', '에너지', 'solar', 'chemical',
+      '화학', 'material', 'mining', 'oil', 'gas', 'mineral', 'power'];
+    if (energyKeys.some(k => lower.includes(k))) return 'energy';
+    // Finance / Banking / Insurance / Fintech
+    const financeKeys = ['bank', 'finance', 'financial', 'invest', 'fund', 'payment',
+      'capital', 'insurance', 'asset', '금융', '은행', '보험', '증권'];
+    if (financeKeys.some(k => lower.includes(k))) return 'finance';
     return 'general';
   }
 
@@ -601,10 +874,10 @@ async function getMockData(companyName) {
 - **미래 성장 프로젝트 및 동력 (Projects)**: 미래 성장의 돌파구를 마련하기 위한 중장기 R&D 신성장 포트폴리오 다각화 프로젝트가 본격 가시화 중입니다.`;
     } else {
       // Direct offline/mock generation with highly realistic industry template when RSS also fails
-      let financialFact = `원자재 조달 비용의 정밀 제어 및 운영 구조 효율화 작업을 단행하여 분기 **영업이익률 및 영업현금흐름 회복** 세가 지속적으로 강화되는 추세입니다.`;
-      let operationFact = `핵심 생산 거점의 설비 현대화 및 품질 관리 수율 극대화를 통해 주력 제품군의 **공급 안정성 및 제조 마진**을 성공적으로 향상시켰습니다.`;
-      let regulatoryFact = `시장 친화적 정책 흐름에 발맞추어 업계 필수 환경/보안 관련 글로벌 **인허가 규격 승인**을 정상 획득하여 해외 진출 걸림돌을 제거했습니다.`;
-      let projectFact = `디지털 고도화 및 기술 포트폴리오 경쟁력 확보를 목표로 하는 중장기 **미래 기술 R&D 로드맵**이 발표되어 시제품 검증 단계에 진입했습니다.`;
+      let financialFact = `글로벌 수요 회복 및 비즈니스 구조 효율화에 힘입어 분기 **영업이익률 및 영업현금흐름**이 지속적으로 개선되는 추세입니다.`;
+      let operationFact = `핵심 사업 부문의 운영 효율성 강화 및 서비스·제품 경쟁력 제고를 통해 주력 시장에서의 **점유율 및 고객 만족도**를 성공적으로 향상시켰습니다.`;
+      let regulatoryFact = `시장 친화적 정책 흐름에 발맞추어 업계 필수 글로벌 **규제 준수 및 인허가 요건**을 정상 충족하여 해외 진출 경쟁력을 강화했습니다.`;
+      let projectFact = `차세대 성장 동력 확보를 목표로 하는 중장기 **신사업 R&D 로드맵**이 발표되어 시장 검증 단계에 본격 진입했습니다.`;
 
       if (industry === 'bio') {
         financialFact = `성공적인 해외 판권 라이선스 아웃(L/O) 계약금 및 주요 마일스톤의 순차적 인식에 힘입어 **재무 안정성 수준**이 풍부하게 확충되었습니다.`;
@@ -627,6 +900,13 @@ async function getMockData(companyName) {
         projectFact = `차세대 고체 전해질 대량 합성 공정 개발 완료 및 글로벌 완성차 업체 공급을 위한 **공동 실증 설비 구축 프로젝트**를 시작했습니다.`;
         dynamicRisk = '핵심 원소재 수급의 지정학적 리스크 및 정부 보조금 지급 가이드라인 개정 시 단기 유동성이 다소 압박을 받을 소지가 상존합니다.';
         dynamicOpportunity = '24시간 풀가동되는 친환경 재활용 인프라 양산 안정화와 고체 전해질 독자 상용화에 힘입어 중장기 미국 본토 배터리 공급망 핵심 수혜 가치가 극대화될 전망입니다.';
+      } else if (industry === 'finance') {
+        financialFact = `금리 환경 변화에 선제 대응한 포트폴리오 재편으로 **순이자마진(NIM) 및 수수료 수익** 안정성이 강화되고 있습니다.`;
+        operationFact = `디지털 뱅킹 전환 가속 및 핀테크 파트너십을 통해 플랫폼 사용자 수와 **거래 처리 건수가 전분기 대비 증가**했습니다.`;
+        regulatoryFact = `금융당국의 **건전성 감독 기준** 충족 및 자본적정성 비율(BIS)을 상회하는 수준을 유지하며 안정적 영업 기반을 확보했습니다.`;
+        projectFact = `AI 기반 신용 심사 자동화 및 **디지털 결제 인프라 고도화 프로젝트**가 파일럿 성과를 바탕으로 전면 도입 단계에 진입했습니다.`;
+        dynamicRisk = '금리 변동성 확대 및 부실채권(NPL) 증가 우려 시 대손충당금 적립 부담이 수익성을 일부 제한할 수 있으며, 핀테크 경쟁 심화에 따른 고객 이탈 리스크도 상존합니다.';
+        dynamicOpportunity = '디지털 전환 완성에 따른 비용 효율화와 비이자 수익 다변화가 본격화될 경우, 장기 ROE 개선과 함께 프리미엄 밸류에이션이 정당화될 전망입니다.';
       }
 
       summaryBullets = `- **재무 실적 및 성과 (Financials)**: ${financialFact}
@@ -665,6 +945,18 @@ ${summaryBullets}
     sources: sources
   };
 }
+// ── Stock Price API Endpoint ─────────────────────────────────────────────
+app.get('/api/stock-price', async (req, res) => {
+  const company = (req.query.company || '').trim();
+  if (!company) return res.status(400).json({ error: 'company parameter required' });
+  const ticker = resolveTickerSymbol(company);
+  if (!ticker) return res.json({ found: false, company, ticker: null });
+  console.log(`[Stock Price] Fetching ${ticker} for "${company}"...`);
+  const priceData = await fetchStockPrice(ticker);
+  if (!priceData) return res.json({ found: true, ticker, price: null });
+  res.json({ found: true, ...priceData });
+});
+
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // Fallback to index.html for SPA routing in production

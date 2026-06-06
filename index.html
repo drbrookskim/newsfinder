@@ -11,8 +11,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
   
   <!-- Primary Styling -->
-  <script type="module" crossorigin src="/newsfinder/assets/index-BsN4zrzk.js"></script>
-  <link rel="stylesheet" crossorigin href="/newsfinder/assets/index-Bkqtg35F.css">
+  <script type="module" crossorigin src="/newsfinder/assets/index-C4laKAB9.js"></script>
+  <link rel="stylesheet" crossorigin href="/newsfinder/assets/index-MCYbwgwr.css">
 </head>
 <body>
   <!-- Aurora Background Waves (Subtle slowly moving curtains) -->
@@ -284,6 +284,29 @@
 
         <!-- Right Panel: Core Grounding & Metrics -->
         <div class="results-side-col">
+
+          <!-- ◎ Real-time Stock Price Widget -->
+          <div class="stock-price-card glass-panel" id="stock-price-card" style="display:none">
+            <div class="stock-card-header">
+              <div class="stock-ticker-info">
+                <span class="stock-ticker" id="stock-ticker">—</span>
+                <span class="stock-exchange" id="stock-exchange"></span>
+              </div>
+              <span class="market-state-badge" id="stock-market-state"></span>
+            </div>
+            <div class="stock-price-main">
+              <span class="stock-price" id="stock-price">—</span>
+              <span class="stock-change neutral" id="stock-change">—</span>
+            </div>
+            <div class="stock-details">
+              <div class="stock-detail-item">
+                <span class="detail-label">전일 종가</span>
+                <span class="detail-value" id="stock-prev-close">—</span>
+              </div>
+            </div>
+            <div class="stock-disclaimer">Yahoo Finance 제공 · 실시간 데이터</div>
+          </div>
+
           <!-- AI Engine Status Card -->
           <div class="status-summary-card glass-panel">
             <h4>추론 상태 프로필</h4>

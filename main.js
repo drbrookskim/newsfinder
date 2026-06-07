@@ -609,6 +609,28 @@ function renderHistoryUI() {
 
     historyList.appendChild(li);
   });
+
+  // Update "Recent Searches" tags on the main screen
+  const recentTagsContainer = document.getElementById('recent-searches-tags');
+  if (recentTagsContainer) {
+    recentTagsContainer.innerHTML = '';
+    if (searchHistory.length === 0) {
+      recentTagsContainer.innerHTML = '<span style="color:var(--text-muted); font-size:0.8rem;">검색 이력이 없습니다.</span>';
+    } else {
+      searchHistory.slice(0, 5).forEach(item => {
+        const btn = document.createElement('button');
+        btn.className = 'trending-tag-btn';
+        btn.textContent = item.name;
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          companyInput.value = item.name;
+          clearInputBtn.style.display = 'flex';
+          performAnalysis(item.name);
+        });
+        recentTagsContainer.appendChild(btn);
+      });
+    }
+  }
 }
 
 function deleteHistoryItem(index) {

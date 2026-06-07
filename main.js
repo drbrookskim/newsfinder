@@ -36,9 +36,10 @@ const stepRender = document.getElementById('step-render');
 // Result elements
 const resultCompanyName = document.getElementById('result-company-name');
 const marketImpactBadge = document.getElementById('market-impact-badge');
+const errorTitle = document.getElementById('error-title');
+const errorDesc = document.getElementById('error-desc');
 const insightMarkdown = document.getElementById('insight-markdown');
 const sourcesContainer = document.getElementById('sources-container');
-const sourcesPanel = document.querySelector('.sources-panel');
 
 // Sidebar and controls
 const historyList = document.getElementById('history-list');
@@ -494,18 +495,10 @@ function customMarkdownParser(markdown) {
   return html;
 }
 
-// Render grounding news sources cards
+// Render grounding news sources cards as inline badges next to heading
 function renderSources(sources) {
-  sourcesContainer.innerHTML = '';
-  
-  if (!sources || !Array.isArray(sources) || sources.length === 0) {
-    sourcesPanel.style.display = 'none';
-    return;
-  }
+  if (!sources || !Array.isArray(sources) || sources.length === 0) return;
 
-  sourcesPanel.style.display = 'block';
-
-  // Remove duplicate URLs to clean up the output
   const uniqueSources = [];
   const seenUrls = new Set();
   
@@ -516,22 +509,46 @@ function renderSources(sources) {
     }
   });
 
-  uniqueSources.forEach(source => {
-    const domain = extractDomain(source.url);
+  if (uniqueSources.length === 0) return;
+
+  // Find the heading that contains "핵심 뉴스 요약"
+  const headings = insightMarkdown.querySelectorAll('h1, h2, h3, h4');
+  let targetHeading = null;
+  for (const h of headings) {
+    if (h.textContent.includes('핵심 뉴스') || h.textContent.includes('요약')) {
+      targetHeading = h;
+      break;
+    }
+  }
+
+  // If not found, fallback to the very first heading
+  if (!targetHeading && headings.length > 0) {
+    targetHeading = headings[0];
+  }
+
+  if (targetHeading) {
+    const badgeContainer = document.createElement('span');
+    badgeContainer.className = 'inline-source-badges';
     
-    const card = document.createElement('a');
-    card.className = 'source-card';
-    card.href = source.url;
-    card.target = '_blank';
-    card.rel = 'noopener noreferrer';
+    uniqueSources.forEach((source, index) => {
+      const badge = document.createElement('a');
+      badge.className = 'inline-source-badge';
+      badge.href = source.url;
+      badge.target = '_blank';
+      badge.rel = 'noopener noreferrer';
+      badge.textContent = index + 1;
+      badge.title = source.title; // show title on hover
+      badgeContainer.appendChild(badge);
+    });
+
+    // Make the heading a flex container to align items properly if it isn't already
+    targetHeading.style.display = 'flex';
+    targetHeading.style.alignItems = 'center';
+    targetHeading.style.flexWrap = 'wrap';
+    targetHeading.style.gap = '10px';
     
-    card.innerHTML = `
-      <span class="source-title" title="${source.title}">${source.title}</span>
-      <span class="source-domain">${domain}</span>
-    `;
-    
-    sourcesContainer.appendChild(card);
-  });
+    targetHeading.appendChild(badgeContainer);
+  }
 }
 
 // Helper to extract cleanly readable domain from URL

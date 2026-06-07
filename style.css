@@ -2204,7 +2204,36 @@ body.light-mode .marquee-tile:hover {
   margin-top: 2px;
 }
 
+/* ── Inline Source Badges (Next to Headings) ─────────────────────────────── */
+.inline-source-badges {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: 8px;
+  vertical-align: middle;
+}
 
+.inline-source-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(144, 202, 249, 0.15);
+  color: #90caf9;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid rgba(144, 202, 249, 0.4);
+  transition: all 0.2s ease;
+}
+
+.inline-source-badge:hover {
+  background: rgba(144, 202, 249, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
 
 /* --- News Aggregator Styles --- */
 .news-list-container {

@@ -418,7 +418,7 @@ async function fetchNaverNews(query, naverClientId, naverClientSecret, isFallbac
     
     // Fallback if no news found for the specific company
     if (items.length === 0 && !isFallback) {
-      return await fetchNaverNews('글로벌 경제 증시 속보', naverClientId, naverClientSecret, true);
+      return await fetchNaverNews('주식 증권', naverClientId, naverClientSecret, true);
     }
     
     return items.slice(0, 8).map(item => ({

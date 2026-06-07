@@ -1897,7 +1897,7 @@ body.light-mode {
 .summary-marquee-section {
   width: 100%;
   margin-top: 12px;
-  padding: 20px 24px;
+  padding: 26px 24px;
   border-radius: var(--border-radius-md);
   position: relative;
   overflow: hidden;
@@ -1987,7 +1987,7 @@ body.light-mode {
 .marquee-tile {
   flex-shrink: 0;
   width: 330px;
-  padding: 16px;
+  padding: 22px;
   border-radius: var(--border-radius-sm);
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -1996,7 +1996,7 @@ body.light-mode {
   white-space: normal;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
 
 body.light-mode .marquee-tile {

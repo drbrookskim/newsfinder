@@ -378,6 +378,31 @@ function renderResults(companyName, data) {
   // Render sources grid
   renderSources(data.sources);
 
+  // Render Naver News Sidebar
+  const naverNewsSidebar = document.getElementById('naver-news-sidebar');
+  if (naverNewsSidebar) {
+    if (data.naverNewsItems && data.naverNewsItems.length > 0) {
+      let html = '';
+      data.naverNewsItems.forEach(item => {
+        const title = (item.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const desc = (item.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const pubDate = new Date(item.pubDate || new Date()).toLocaleString('ko-KR', {
+          month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'
+        });
+        html += `
+          <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="news-card" style="margin-bottom: 12px; padding: 12px; display: block; text-decoration: none;">
+            <h4 style="margin: 0 0 4px 0; font-size: 0.95rem; color: #fff;">${title}</h4>
+            <p style="margin: 0; font-size: 0.8rem; color: rgba(255,255,255,0.7); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${desc}</p>
+            <div style="margin-top: 6px; font-size: 0.75rem; color: rgba(255,255,255,0.4); text-align: right;">${pubDate}</div>
+          </a>
+        `;
+      });
+      naverNewsSidebar.innerHTML = html;
+    } else {
+      naverNewsSidebar.innerHTML = '<div class="news-empty-state" style="text-align:center; padding: 20px; color:rgba(255,255,255,0.5);">해당 종목의 최신 네이버 속보가 없습니다.</div>';
+    }
+  }
+
   // Extract and add key summary to flowing bottom marquee feed
   const extractedSummary = extractSummaryText(insightText);
   if (extractedSummary) {

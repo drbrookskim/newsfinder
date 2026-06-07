@@ -46,7 +46,7 @@ export default {
     return createResponse({ error: 'companyName은 필수 항목이며 유효한 문자열이어야 합니다.' });
   }
 
-  const dynamicApiKey = globalEnv.GEMINI_API_KEY || apiKey;
+  const dynamicApiKey = globalEnv.GEMINI_API_KEY;
 
   // Calculate today's date for strict 48-hour search context
   const today = new Date();
@@ -57,15 +57,30 @@ export default {
     timeZone: 'Asia/Seoul'
   });
 
+  // Always fetch Naver News in parallel (whether we hit demo mode or real API)
+  let naverNewsItems = [];
+  try {
+    const expandedQuery = expandSearchQuery(companyName);
+    const naverNews = await fetchNaverNews(expandedQuery, globalEnv.NAVER_CLIENT_ID, globalEnv.NAVER_CLIENT_SECRET);
+    naverNewsItems = naverNews.map(news => ({
+      title: news.title,
+      description: news.description,
+      pubDate: news.pubDate,
+      url: news.url || news.link
+    }));
+  } catch(e) {
+    console.warn("Failed to fetch Naver News:", e);
+  }
+
   // If API Key is completely missing, serve live Google RSS-backed Demo Mode
   if (!dynamicApiKey) {
     console.log(`[DEMO MODE] No API Key configured. Serving live RSS mock analysis for: ${companyName}...`);
     const demoData = await getMockData(companyName);
-    return createResponse(demoData);
+    return createResponse({ ...demoData, naverNewsItems });
   }
 
   try {
-    const genAIClient = ai || new GoogleGenAI({ apiKey: dynamicApiKey });
+    const genAIClient = new GoogleGenAI({ apiKey: dynamicApiKey });
     console.log(`Analyzing news for company: ${companyName}...`);
 
     // Define model priority list
@@ -179,10 +194,11 @@ export default {
     }
 
     // Return results
-    res.json({
+    return createResponse({
       insight: response.text,
       sources: sources.length > 0 ? sources : null,
-      modelUsed
+      modelUsed,
+      naverNewsItems
     });
 
   } catch (error) {
@@ -191,7 +207,7 @@ export default {
     // Serve live Google RSS-backed Demo Mode fallback
     console.log(`[DEMO MODE] Falling back to RSS-backed mock analysis for: ${companyName}...`);
     const demoData = await getMockData(companyName);
-    return createResponse(demoData);
+    return createResponse({ ...demoData, naverNewsItems, debugError: error.message });
   }
 
     }

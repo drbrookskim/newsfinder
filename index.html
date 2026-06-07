@@ -302,52 +302,21 @@
             <div class="stock-disclaimer">Yahoo Finance 제공 · 실시간 데이터</div>
           </div>
 
-          <!-- AI Engine Status Card -->
-          <div class="status-summary-card glass-panel">
-            <h4>추론 상태 프로필</h4>
-            <div class="status-meta-list">
-              <div class="status-meta-item">
-                <span class="meta-label">분석 모듈</span>
-                <span class="meta-value value-highlight">API Grounding v2</span>
-              </div>
-              <div class="status-meta-item">
-                <span class="meta-label">지연 응답 속도</span>
-                <span class="meta-value">1.04s (에지 최적화)</span>
-              </div>
-              <div class="status-meta-item">
-                <span class="meta-label">보안 검증 수준</span>
-                <span class="meta-value text-green">100% SECURE</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Market Volatility Qualitative Gauges -->
-          <div class="volatility-card glass-panel">
-            <h4>정성적 주가 변동 리스크</h4>
-            <div class="gauge-bar-wrapper">
-              <div class="gauge-label-row">
-                <span>단기 가격 변동성</span>
-                <span class="gauge-value">보통 (Medium)</span>
-              </div>
-              <div class="gauge-bar-bg">
-                <div class="gauge-bar-fill fill-medium"></div>
-              </div>
-            </div>
-            <div class="gauge-bar-wrapper">
-              <div class="gauge-label-row">
-                <span>중장기 펀더멘탈 우위</span>
-                <span class="gauge-value">안정 (High)</span>
-              </div>
-              <div class="gauge-bar-bg">
-                <div class="gauge-bar-fill fill-high"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Sources Grounding Panel -->
+          <!-- Naver News Sidebar Feed -->
           <div class="sources-panel glass-panel">
+            <div class="sources-header" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+              <h3>네이버 실시간 속보</h3>
+              <span class="live-badge" style="color: #00F2FE; font-size: 0.8rem; border: 1px solid rgba(0,242,254,0.3); padding: 2px 6px; border-radius: 4px;">LIVE</span>
+            </div>
+            <div id="naver-news-sidebar" class="news-list-container" style="max-height: 400px; overflow-y: auto; padding-right: 8px;">
+              <div class="news-empty-state" style="text-align:center; padding: 20px; color:rgba(255,255,255,0.5);">속보를 불러오는 중...</div>
+            </div>
+          </div>
+
+          <!-- Sources Grounding Panel (AI 참조) -->
+          <div class="sources-panel glass-panel" style="margin-top: 16px;">
             <div class="sources-header">
-              <h3>참조 기사 출처</h3>
+              <h3>AI 참조 기사 (Grounding)</h3>
               <p>Gemini Grounding 기술이 실시간으로 확인하고 교차 검증한 사실 뉴스 리스트입니다.</p>
             </div>
             <div class="sources-grid" id="sources-container">

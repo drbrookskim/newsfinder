@@ -1952,6 +1952,7 @@ body.light-mode {
   width: 100%;
   overflow: hidden;
   display: flex;
+  padding: 4px 0; /* Prevents tile from clipping when transforming up on hover */
 }
 
 .marquee-container::before,
@@ -2313,6 +2314,11 @@ body.light-mode .marquee-tile:hover {
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 2px; /* Prevent top clipping on hover */
+}
+
+.news-card:first-child {
+  margin-top: 4px;
 }
 
 .news-card:hover {

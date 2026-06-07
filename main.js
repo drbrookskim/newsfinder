@@ -54,7 +54,7 @@ async function fetchAndDisplayStockPrice(companyName) {
   const card = document.getElementById('stock-price-card');
   if (!card) return;
   card.classList.add('loading');
-  card.style.display = 'block';
+  card.style.display = 'flex';
   try {
     const endpoint = `${API_BASE}/api/stock-price?company=${encodeURIComponent(companyName)}`;
     const res = await fetch(endpoint);

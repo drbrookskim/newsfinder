@@ -987,14 +987,14 @@ h1, h2, h3, h4, .brand-name, .glow-btn, .trending-tag-btn, .verified-badge {
 
 .workspace-panel.split-layout {
   display: none; /* Controlled by active class override */
-  grid-template-columns: 2.2fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 24px;
   width: 100%;
-  align-items: start;
 }
 
 .workspace-panel.split-layout.active {
-  display: grid;
+  display: flex;
 }
 
 .results-main-col {

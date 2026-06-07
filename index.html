@@ -249,14 +249,34 @@
         <div class="results-main-col">
           <!-- Summary Header Card -->
           <div class="result-header-card glass-panel">
-            <div class="header-card-left">
-              <span class="verified-badge">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                실시간 검색 접지 완료
-              </span>
-              <h2 id="result-company-name">삼성전자</h2>
+            <div class="header-card-left" style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+              <div>
+                <span class="verified-badge">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  실시간 검색 접지 완료
+                </span>
+                <h2 id="result-company-name">삼성전자</h2>
+              </div>
+
+              <!-- Inline Real-time Stock Price Widget -->
+              <div id="stock-price-card" style="display: none; align-items: center; gap: 12px; background: rgba(255,255,255,0.05); padding: 8px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <span class="stock-ticker" id="stock-ticker" style="font-size: 0.85rem; color: #888; line-height: 1;">—</span>
+                  <span class="market-state-badge" id="stock-market-state" style="font-size: 0.7rem; padding: 2px 6px;"></span>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+                  <div style="display: flex; align-items: baseline; gap: 6px;">
+                    <span id="stock-price-label" style="font-size: 0.75rem; color: #aaa;">현재 주가</span>
+                    <span class="stock-price" id="stock-price" style="font-size: 1.4rem; font-weight: 700; line-height: 1;">—</span>
+                  </div>
+                  <span class="stock-change neutral" id="stock-change" style="font-size: 0.9rem; line-height: 1;">—</span>
+                </div>
+                <!-- Hidden fields required by main.js -->
+                <span id="stock-exchange" style="display:none;"></span>
+                <span id="stock-prev-close" style="display:none;"></span>
+              </div>
             </div>
             <div class="header-card-right">
               <span class="impact-label">시장 영향 진단</span>
@@ -272,36 +292,8 @@
           </div>
         </div>
 
-        <!-- Right Panel: Core Grounding & Metrics -->
-        <div class="results-side-col">
-
-          <!-- ◎ Real-time Stock Price Widget -->
-          <div class="stock-price-card glass-panel" id="stock-price-card" style="display:none">
-            <div class="stock-card-header">
-              <div class="stock-ticker-info">
-                <span class="stock-ticker" id="stock-ticker">—</span>
-                <span class="stock-exchange" id="stock-exchange"></span>
-              </div>
-              <span class="market-state-badge" id="stock-market-state"></span>
-            </div>
-            <div class="stock-price-main" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-              <span id="stock-price-label" style="font-size: 0.8rem; color: #888; font-weight: 500;">현재 주가</span>
-              <div style="display: flex; align-items: baseline; gap: 10px;">
-                <span class="stock-price" id="stock-price">—</span>
-                <span class="stock-change neutral" id="stock-change">—</span>
-              </div>
-            </div>
-            <div class="stock-details">
-              <div class="stock-detail-item">
-                <span class="detail-label">전일 종가</span>
-                <span class="detail-value" id="stock-prev-close">—</span>
-              </div>
-            </div>
-            <div class="stock-disclaimer">Yahoo Finance 제공 · 실시간 데이터</div>
-          </div>
-
-          <!-- Naver News Sidebar Feed -->
-          <div class="sources-panel glass-panel">
+          <!-- Naver News Bottom Feed -->
+          <div class="sources-panel glass-panel" style="margin-top: 20px;">
             <div class="sources-header" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
               <h3>네이버 실시간 속보</h3>
               <span class="live-badge" style="color: #00F2FE; font-size: 0.8rem; border: 1px solid rgba(0,242,254,0.3); padding: 2px 6px; border-radius: 4px;">LIVE</span>
@@ -310,7 +302,6 @@
               <div class="news-empty-state" style="text-align:center; padding: 20px; color:rgba(255,255,255,0.5);">속보를 불러오는 중...</div>
             </div>
           </div>
-
         </div>
 
       </div>

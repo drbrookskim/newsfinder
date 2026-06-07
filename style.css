@@ -987,7 +987,6 @@ h1, h2, h3, h4, .brand-name, .glow-btn, .trending-tag-btn, .verified-badge {
 
 .workspace-panel.split-layout {
   display: none; /* Controlled by active class override */
-  display: flex;
   flex-direction: column;
   gap: 24px;
   width: 100%;

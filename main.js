@@ -53,9 +53,7 @@ async function fetchAndDisplayStockPrice(companyName) {
   card.classList.add('loading');
   card.style.display = 'block';
   try {
-    const endpoint = window.location.hostname === 'localhost' || window.location.port
-      ? `/api/stock-price?company=${encodeURIComponent(companyName)}`
-      : `/api/stock-price?company=${encodeURIComponent(companyName)}`;
+    const endpoint = `${API_BASE}/api/stock-price?company=${encodeURIComponent(companyName)}`;
     const res = await fetch(endpoint);
     if (!res.ok) throw new Error('fetch failed');
     const data = await res.json();

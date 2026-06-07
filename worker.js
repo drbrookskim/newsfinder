@@ -1,42 +1,205 @@
 import { GoogleGenAI } from '@google/genai';
 
-// In-Memory Rate Limiting Cache for Cloudflare Workers (Per-Isolate)
-const ipCache = new Map();
+let globalEnv = null;
 
-function checkRateLimit(ip) {
-  const now = Date.now();
-  const limit = 15; // Maximum 15 requests per minute
-  const windowMs = 60000; // 1 minute window
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, X-Naver-Client-Id, X-Naver-Client-Secret',
+};
 
-  // Clean up expired entries lazily to preserve memory
-  if (ipCache.size > 500) {
-    for (const [key, value] of ipCache.entries()) {
-      if (now > value.resetTime) {
-        ipCache.delete(key);
-      }
+function createResponse(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      ...CORS_HEADERS
     }
-  }
-
-  const clientData = ipCache.get(ip);
-  if (!clientData) {
-    ipCache.set(ip, { count: 1, resetTime: now + windowMs });
-    return false; // Not limited
-  }
-
-  if (now > clientData.resetTime) {
-    ipCache.set(ip, { count: 1, resetTime: now + windowMs });
-    return false; // Not limited
-  }
-
-  clientData.count++;
-  if (clientData.count > limit) {
-    return true; // Rate limited!
-  }
-
-  return false;
+  });
 }
 
-// Helper function to fetch a single RSS feed
+export default {
+  async fetch(request, env, ctx) {
+    globalEnv = env;
+    const url = new URL(request.url);
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: CORS_HEADERS });
+    }
+
+    if (url.pathname === '/api/stock-price' && request.method === 'GET') {
+      const companyName = url.searchParams.get('company');
+      if (!companyName) return createResponse({ error: 'company parameter is required' }, 400);
+      try {
+        const priceData = await fetchStockPrice(companyName);
+        return createResponse(priceData);
+      } catch (e) {
+        return createResponse({ error: 'Failed to fetch stock price' }, 500);
+      }
+    }
+
+    if (url.pathname === '/api/analyze' && request.method === 'POST') {
+      
+  const { companyName } = await request.json();
+
+  if (!companyName || typeof companyName !== 'string' || !companyName.trim()) {
+    return createResponse({ error: 'companyName은 필수 항목이며 유효한 문자열이어야 합니다.' });
+  }
+
+  const dynamicApiKey = globalEnv.GEMINI_API_KEY || apiKey;
+
+  // Calculate today's date for strict 48-hour search context
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'Asia/Seoul'
+  });
+
+  // If API Key is completely missing, serve live Google RSS-backed Demo Mode
+  if (!dynamicApiKey) {
+    console.log(`[DEMO MODE] No API Key configured. Serving live RSS mock analysis for: ${companyName}...`);
+    const demoData = await getMockData(companyName);
+    return createResponse(demoData);
+  }
+
+  try {
+    const genAIClient = ai || new GoogleGenAI({ apiKey: dynamicApiKey });
+    console.log(`Analyzing news for company: ${companyName}...`);
+
+    // Define model priority list
+    const primaryModel = globalEnv.GEMINI_MODEL || 'gemini-3.5-flash';
+    const modelsToTry = [primaryModel];
+    
+    // Append alternative models if not already present
+    const alternatives = ['gemini-3.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    alternatives.forEach(alt => {
+      if (!modelsToTry.includes(alt)) {
+        modelsToTry.push(alt);
+      }
+    });
+
+    let response = null;
+    let lastError = null;
+    let modelUsed = '';
+
+    for (const model of modelsToTry) {
+      try {
+        console.log(`Attempting analysis using model: ${model}...`);
+        const expandedQuery = expandSearchQuery(companyName);
+        const hasEnglish = /[a-zA-Z]/.test(expandedQuery);
+        
+        let promptContents = '';
+        
+        // Detect industry to add specific analytical context to prompt
+        const industryLower = (companyName + ' ' + expandedQuery).toLowerCase();
+        const isTechCompany = ['tech', 'soft', 'cloud', 'saas', 'data', 'git', 'dev', 'ops',
+          'platform', 'cyber', 'security', 'network', 'sys', 'lab', 'ware', 'code',
+          'digital', 'api', 'gitlab', 'salesforce', 'servicenow', 'workday', 'snowflake',
+          'datadog', 'crowdstrike', 'hubspot', 'atlassian', 'mongodb', 'adobe', 'oracle',
+          'sap', 'autodesk', 'zoom', 'shopify', 'okta', 'fortinet'].some(k => industryLower.includes(k));
+        const isFinanceCompany = ['bank', 'finance', 'financial', 'invest', 'fund', 'payment',
+          'capital', 'insurance', 'asset', 'visa', 'mastercard', 'paypal'].some(k => industryLower.includes(k));
+        const isBioCompany = ['bio', 'pharma', 'therapeutics', 'health', 'medical', 'gene', 'clinical'].some(k => industryLower.includes(k));
+        
+        let industryHint = '';
+        if (isTechCompany) {
+          industryHint = '\n[업종 지침] 이 기업은 소프트웨어/SaaS/클라우드/테크 기업이므로, 분석 시 ARR(연간 반복 매출), NRR(순 매출 유지율), 구독 매출 성장률, 플랫폼 MAU·DAU, 클라우드 매출 성장, 총마진(Gross Margin), 영업비용(OpEx) 등 소프트웨어 업계 KPI를 중심으로 분석해야 하며, 제조업 원자재, 공장 시설, 생산 가동률 등의 내용은 절대 포함하지 마라.';
+        } else if (isFinanceCompany) {
+          industryHint = '\n[업종 지침] 이 기업은 금융/핀테크 기업이므로, NIM(순이자마진), BIS비율, ROE, 대출 성장률, 수수료 수익, AUM 등 금융업 핵심 지표를 중심으로 분석해야 한다.';
+        } else if (isBioCompany) {
+          industryHint = '\n[업종 지침] 이 기업은 바이오/제약 기업이므로, 임상 파이프라인 진행 상황, FDA/EMA 인허가 단계, 매출 로열티 및 라이선스 수익, R&D 지출 등을 중심으로 분석해야 한다.';
+        }
+        
+        if (hasEnglish) {
+          promptContents = `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 "${companyName}" (${expandedQuery})에 대한 실시간 중요 뉴스를 검색하고 분석해줘.
+이 기업은 미국/글로벌 시장 기업이므로, 실시간 구글 검색(googleSearch tool)을 실행할 때 반드시 영문 검색어(${expandedQuery})를 검색 쿼리로 사용하여 글로벌/미국 현지 뉴스 및 공식 기사(SEC filings, PR Newswire, Bloomberg, Reuters 등)를 우선 검색하고 영어 기사 위주로 분석에 적극 반영해야 해. 한국어 번역본이나 국내 요약 기사에 의존하지 마라.
+특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 다뤄줘.${industryHint}`;
+        } else {
+          promptContents = `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 "${companyName}" (${expandedQuery})에 대한 중요 기업 실시간 뉴스를 검색하고 분석해줘.
+특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 골고루 검색 반영해야 해.${industryHint}`;
+        }
+
+        response = await genAIClient.models.generateContent({
+          model: model,
+          contents: promptContents,
+          config: {
+            tools: [{ googleSearch: {} }], // Enable Real-time Google Search Grounding
+            systemInstruction: `너는 주식 분석 플랫폼 'Signnith'의 금융 전문 AI 에이전트야.
+제공된 구글 뉴스 검색 결과를 바탕으로, 아래의 양식에 맞추어 마크다운 형식으로 분석을 작성해라.
+실시간 검색 결과에 명시되지 않은 사실을 지어내거나(환각) 추측하는 것은 엄격히 금지된다. 반드시 검색된 사실에 기반하여 팩트와 수치 중심으로 작성해라.
+특히 '시장 영향 분석'과 '투자자 인사이트'는 검색된 뉴스의 개별 사안에 특화되도록 구체적으로 기술해야 하며, 상투적이거나 뻔한 템플릿성 서술은 지양해라.
+
+## 1. 핵심 뉴스 요약
+아래의 4대 핵심 금융 정보 차원을 기준으로 실시간 검색 결과에서 추출한 팩트들을 구체적 수치 및 고유 대상을 포함해 자세한 불릿 포인트로 작성하고, 가장 중요한 키워드나 수치는 **굵게(Bold)** 표시해라:
+- **재무 실적 및 성과 (Financials)**: 매출액, 영업이익, 마진율 변동, 실적 전망 등 정량적 성과 지표 요약.
+- **핵심 사업 및 운영 현황 (Operations)**: 플랫폼·서비스·제품의 운영 효율성(이용자 수, 구독 성장률, 가동률, 매출 원가율 등), 주요 계약·파트너십 확장 현황, 상업화 진척 요약. 소프트웨어 기업이라면 ARR, NRR, MAU 등 SaaS 지표를 중심으로 서술해라.
+- **정책, 규제 및 계약 (Regulations & Contracts)**: 정부 보조금/지원금 수혜 및 변동, 인허가 취득 현황, 소송 또는 규제적 위험 요소 요약.
+- **미래 성장 프로젝트 및 동력 (Projects)**: 연구개발(R&D) 마일스톤, 신공장 착공, 설비 투자(CAPEX) 및 신사업 로드맵 요약.
+
+## 2. 시장 영향 분석
+- 이번 뉴스들이 주가, 시장 인지도 및 비즈니스 경쟁력에 미칠 긍정적/부정적 요소를 분석해라.
+- '긍정적', '중립적', '우려됨' 중 하나의 전체 시장 영향 카테고리를 명시하고 그 이유를 설명해라.
+
+## 3. 투자자 인사이트
+- 단기 및 장기 투자자 관점에서 주목해야 할 핵심 리스크 요인 및 기회 요인을 전문적이고 명확한 어조로 제안해라.
+`
+          }
+        });
+        
+        modelUsed = model;
+        console.log(`Successfully completed analysis using model: ${model}`);
+        break; // Exit loop on success
+      } catch (err) {
+        console.warn(`Model ${model} call failed:`, err.message);
+        lastError = err;
+      }
+    }
+
+    if (!response) {
+      throw lastError || new Error('모든 모델 호출 실패');
+    }
+
+    // Extract search grounding metadata
+    const candidate = response.candidates?.[0];
+    const groundingMetadata = candidate?.groundingMetadata || null;
+
+    // Structure source documents
+    const sources = [];
+    if (groundingMetadata && groundingMetadata.groundingChunks) {
+      groundingMetadata.groundingChunks.forEach(chunk => {
+        if (chunk.web) {
+          sources.push({
+            title: chunk.web.title,
+            url: chunk.web.uri
+          });
+        }
+      });
+    }
+
+    // Return results
+    res.json({
+      insight: response.text,
+      sources: sources.length > 0 ? sources : null,
+      modelUsed
+    });
+
+  } catch (error) {
+    console.warn('Gemini API failed. Falling back to Live RSS Demo Mode. Error details:', error.message);
+    
+    // Serve live Google RSS-backed Demo Mode fallback
+    console.log(`[DEMO MODE] Falling back to RSS-backed mock analysis for: ${companyName}...`);
+    const demoData = await getMockData(companyName);
+    return createResponse(demoData);
+  }
+
+    }
+
+    return createResponse({ error: 'Not Found' }, 404);
+  }
+};
+
 async function fetchSingleFeed(url) {
   try {
     const response = await fetch(url, {
@@ -502,7 +665,7 @@ function expandSearchQuery(companyName) {
   return query;
 }
 
-// Zero-dependency Google News RSS Parser compatible with Cloudflare Workers Edge Environment
+// Zero-dependency Google News RSS Parser fetching both Korean and English if needed
 async function fetchGoogleNewsRSS(companyName) {
   try {
     const expandedQuery = expandSearchQuery(companyName);
@@ -510,7 +673,7 @@ async function fetchGoogleNewsRSS(companyName) {
     const hasEnglish = /[a-zA-Z]/.test(expandedQuery);
     
     if (hasEnglish) {
-      console.log(`[RSS Fetch] Company name "${companyName}" contains English. Fetching both Korean and US/English feeds...`);
+      console.log(`[RSS Fetch] Expanded search query "${expandedQuery}" contains English. Fetching both Korean and US/English feeds...`);
       const koUrl = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ko&gl=KR&ceid=KR:ko`;
       const enUrl = `https://news.google.com/rss/search?q=${encodedQuery}&hl=en&gl=US&ceid=US:en`;
       
@@ -532,14 +695,14 @@ async function fetchGoogleNewsRSS(companyName) {
         if (!seen.has(key)) { seen.add(key); mergedItems.push(item); }
       }
       
-      console.log(`[RSS Edge Multi-Channel] ${mergedItems.length} articles — Google EN:${enItems.length}, Bing:${bingItems.length}, Google KO:${koItems.length}`);
+      console.log(`[RSS Multi-Channel] ${mergedItems.length} articles — Google EN:${enItems.length}, Bing:${bingItems.length}, Google KO:${koItems.length}`);
       return mergedItems.length > 0 ? mergedItems : null;
     } else {
       const url = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ko&gl=KR&ceid=KR:ko`;
       const bingKoUrl = `https://www.bing.com/news/search?q=${encodedQuery}&format=RSS&mkt=ko-KR`;
-      const naverClientId = (typeof NAVER_CLIENT_ID !== 'undefined' ? NAVER_CLIENT_ID : null) || '';
-      const naverClientSecret = (typeof NAVER_CLIENT_SECRET !== 'undefined' ? NAVER_CLIENT_SECRET : null) || '';
-      console.log(`[RSS Edge] Korean query — Google KO + Bing KO${naverClientId ? ' + Naver' : ''} for: ${companyName}...`);
+      const naverClientId = globalEnv.NAVER_CLIENT_ID;
+      const naverClientSecret = globalEnv.NAVER_CLIENT_SECRET;
+      console.log(`[RSS Fetch] Korean query — Google KO + Bing KO${naverClientId ? ' + Naver' : ''} for: ${companyName}...`);
       const [koItems, bingItems, naverItems] = await Promise.all([
         fetchSingleFeed(url),
         fetchSingleFeed(bingKoUrl),
@@ -555,12 +718,13 @@ async function fetchGoogleNewsRSS(companyName) {
       return mergedItems.length > 0 ? mergedItems : null;
     }
   } catch (error) {
-    console.error('[RSS Fetch] Edge Error fetching Google News RSS:', error.message);
+    console.error('[RSS Fetch] Error fetching Google News RSS:', error.message);
     return null;
   }
 }
 
-// Generate realistic mock data dynamically backed by real-time RSS
+
+// --- Mock Data Generator for Demo Mode (Now Backed by Real-Time Google News RSS) ---
 async function getMockData(companyName) {
   const formattedName = companyName.toUpperCase();
   const lowerQuery = companyName.trim().toLowerCase();
@@ -745,34 +909,11 @@ async function getMockData(companyName) {
         operationFact = `서버 인프라를 분산형 차세대 클라우드로 전격 전환 완료하여 시스템 운영비 30% 절감과 동시에 무중단 운영 상태를 실현했습니다.`;
         regulatoryFact = `글로벌 정보보호 관리 체계(ISO 27001) 인증 심사를 통과하여 대형 금융기관 등 엔터프라이즈 **정식 기술 공급 파트너**로 정식 등록되었습니다.`;
         projectFact = `개발자 생산성을 최대 50% 향상시키는 차세대 인공지능 기반 **지능형 자동 개발 툴킷 프로젝트**의 오픈베타 서비스 개시를 발표했습니다.`;
-        dynamicRisk = '클라우드 인프라 운�            let promptContents = '';
-            
-            // Industry detection — add sector-specific KPI hint to prompt
-            const industryLower = (companyName + ' ' + expandedQuery).toLowerCase();
-            const isTechCompany = ['tech', 'soft', 'cloud', 'saas', 'data', 'git', 'dev', 'ops',
-              'platform', 'cyber', 'security', 'network', 'sys', 'lab', 'ware', 'code',
-              'digital', 'api', 'gitlab', 'salesforce', 'servicenow', 'workday', 'snowflake',
-              'datadog', 'crowdstrike', 'hubspot', 'atlassian', 'mongodb', 'adobe', 'oracle',
-              'sap', 'autodesk', 'zoom', 'shopify', 'okta', 'fortinet'].some(k => industryLower.includes(k));
-            const isFinanceCompany = ['bank', 'finance', 'financial', 'invest', 'fund', 'payment',
-              'capital', 'insurance', 'asset', 'visa', 'mastercard', 'paypal'].some(k => industryLower.includes(k));
-            const isBioCompany = ['bio', 'pharma', 'therapeutics', 'health', 'medical', 'gene', 'clinical'].some(k => industryLower.includes(k));
-            
-            let industryHint = '';
-            if (isTechCompany) {
-              industryHint = '\n[업종 지침] 이 기업은 소프트웨어/SaaS/클라우드/테크 기업이므로, 분석 시 ARR(연간 반복 매출), NRR(순 매출 유지율), 구독 매출 성장률, 플랫폼 MAU·DAU, 클라우드 매출 성장, 총마진(Gross Margin), 영업비용(OpEx) 등 소프트웨어 업계 KPI를 중심으로 분석해야 하며, 제조업 원자재, 공장 시설, 생산 가동률 등의 내용은 절대 포함하지 마라.';
-            } else if (isFinanceCompany) {
-              industryHint = '\n[업종 지침] 이 기업은 금융/핀테크 기업이므로, NIM(순이자마진), BIS비율, ROE, 대출 성장률, 수수료 수익, AUM 등 금융업 핵심 지표를 중심으로 분석해야 한다.';
-            } else if (isBioCompany) {
-              industryHint = '\n[업종 지침] 이 기업은 바이오/제약 기업이므로, 임상 파이프라인 진행 상황, FDA/EMA 인허가 단계, 매출 로열티 및 라이선스 수익, R&D 지출 등을 중심으로 분석해야 한다.';
-            }
-            
-            if (hasEnglish) {
-              promptContents = `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 "${companyName}" (${expandedQuery})에 대한 실시간 중요 뉴스를 검색하고 분석해줘.\n이 기업은 미국/글로벌 시장 기업이므로, 실시간 구글 검색(googleSearch tool)을 실행할 때 반드시 영문 검색어(${expandedQuery})를 검색 쿼리로 사용하여 글로벌/미국 현지 뉴스 및 공식 기사(SEC filings, PR Newswire, Bloomberg, Reuters 등)를 우선 검색하고 영어 기사 위주로 분석에 적극 반영해야 해. 한국어 번역본이나 국내 요약 기사에 의존하지 마라.\n특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 다뤄줘.${industryHint}`;
-            } else {
-              promptContents = `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 "${companyName}" (${expandedQuery})에 대한 중요 기업 실시간 뉴스를 검색하고 분석해줘.
-특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 골고루 검색 반영해야 해.${industryHint}`;
-            }��신되었습니다.`;
+        dynamicRisk = '클라우드 인프라 운영 비용 증가 및 대형 기업들과의 B2B 솔루션 공급 계약 지연 시 마진 스프레드가 일부 조정될 소지가 존재합니다.';
+        dynamicOpportunity = '자체 지능형 인공지능 플랫폼 고도화 및 엔터프라이즈 기술 파트너 확보에 따른 연간 반복 매출(ARR) 상승 모멘텀이 매우 강력하게 전개될 전망입니다.';
+      } else if (industry === 'energy') {
+        financialFact = `전기차 및 에너지 저장 장치 시장 팽창에 따라 양극재 및 친환경 에너지 부문 **매출 성장률 35%**를 돌파하며 탄탄한 현금 유동성을 확보했습니다.`;
+        operationFact = `배터리 셀 제조 라인의 100% 24시간 가동 체제 전환 완료 및 핵심 원소재 재활용 가공 라인 수율이 95% 이상으로 대폭 갱신되었습니다.`;
         regulatoryFact = `주요 선진국 연방 정부의 자국 내 첨단 제조 크레딧 세제 혜택 수혜 승인을 얻어 연간 **보조금 수령 자격 요건**을 완전히 충족했습니다.`;
         projectFact = `차세대 고체 전해질 대량 합성 공정 개발 완료 및 글로벌 완성차 업체 공급을 위한 **공동 실증 설비 구축 프로젝트**를 시작했습니다.`;
         dynamicRisk = '핵심 원소재 수급의 지정학적 리스크 및 정부 보조금 지급 가이드라인 개정 시 단기 유동성이 다소 압박을 받을 소지가 상존합니다.';
@@ -822,216 +963,3 @@ ${summaryBullets}
     sources: sources
   };
 }
-export default {
-  async fetch(request, env, ctx) {
-    const origin = request.headers.get('Origin') || '';
-    
-    // Whitelist official production domain and local development testing domains
-    const allowedOrigins = [
-      'https://drbrookskim.github.io',
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-      'http://localhost:8787',
-      'http://127.0.0.1:8787'
-    ];
-    
-    let allowOrigin = 'https://drbrookskim.github.io'; // Default fallback
-    if (allowedOrigins.includes(origin)) {
-      allowOrigin = origin;
-    }
-
-    // Define robust CORS headers for Serverless Edge environment
-    const corsHeaders = {
-      'Access-Control-Allow-Origin': allowOrigin,
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Max-Age': '86400',
-    };
-
-    // Handle preflight requests
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
-    }
-
-    // 1. IP-Based Rate Limiting Check (Max 15 requests per minute)
-    const clientIP = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
-    if (checkRateLimit(clientIP)) {
-      return new Response(
-        JSON.stringify({ 
-          error: '너무 많은 요청이 발생했습니다. 잠시 후 다시 시도해 주십시오. (Rate Limit Exceeded)' 
-        }),
-        { 
-          status: 429, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-        }
-      );
-    }
-
-    const url = new URL(request.url);
-
-    // Endpoint Routing
-    if (url.pathname === '/api/stock-price' && request.method === 'GET') {
-      const company = url.searchParams.get('company')?.trim() || '';
-      if (!company) return new Response(JSON.stringify({ error: 'company parameter required' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-      const ticker = resolveTickerSymbol(company);
-      if (!ticker) return new Response(JSON.stringify({ found: false, company, ticker: null }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-      const priceData = await fetchStockPrice(ticker);
-      return new Response(JSON.stringify(priceData ? { found: true, ...priceData } : { found: true, ticker, price: null }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-    }
-
-    if (url.pathname !== '/api/analyze') {
-      return new Response('Not Found', { status: 404, headers: corsHeaders });
-    }
-
-    if (request.method !== 'POST') {
-      return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
-    }
-
-    try {
-      const { companyName } = await request.json();
-
-      if (!companyName || typeof companyName !== 'string' || !companyName.trim()) {
-        return new Response(
-          JSON.stringify({ error: 'companyName은 필수 항목이며 유효한 문자열이어야 합니다.' }),
-          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
-      }
-
-      // Get API Key from Serverless Cloudflare environment binding
-      const dynamicApiKey = env.GEMINI_API_KEY;
-
-      // Calculate today's date for search indexing context
-      const today = new Date();
-      const formattedDate = today.toLocaleDateString('ko-KR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        timeZone: 'Asia/Seoul'
-      });
-
-      // If API Key binding is empty, serve live RSS-backed serverless mock analysis
-      if (!dynamicApiKey) {
-        console.log(`[EDGE DEMO] No GEMINI_API_KEY binding. Serving RSS-backed mock for: ${companyName}...`);
-        const demoData = await getMockData(companyName);
-        return new Response(
-          JSON.stringify(demoData),
-          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
-      }
-
-      // Call Gemini API using `@google/genai` Edge SDK
-      try {
-        const genAIClient = new GoogleGenAI({ apiKey: dynamicApiKey });
-        console.log(`[EDGE API] Analyzing news using Gemini API for: ${companyName}...`);
-
-        // Model priority fallback sequence
-        const primaryModel = env.GEMINI_MODEL || 'gemini-3.5-flash';
-        const modelsToTry = [primaryModel];
-        const alternatives = ['gemini-3.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
-        
-        alternatives.forEach(alt => {
-          if (!modelsToTry.includes(alt)) {
-            modelsToTry.push(alt);
-          }
-        });
-
-        let response = null;
-        let lastError = null;
-        let modelUsed = '';
-
-        for (const model of modelsToTry) {
-          try {
-            console.log(`[EDGE API] Attempting model: ${model}...`);
-            const expandedQuery = expandSearchQuery(companyName);
-            const hasEnglish = /[a-zA-Z]/.test(expandedQuery);
-            let promptContents = '';
-            if (hasEnglish) {
-              promptContents = `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 "${companyName}" (${expandedQuery})에 대한 실시간 중요 뉴스를 검색하고 분석해줘.\n이 기업은 미국/글로벌 시장 기업이므로, 실시간 구글 검색(googleSearch tool)을 실행할 때 반드시 영문 검색어(${expandedQuery})를 검색 쿼리로 사용하여 글로벌/미국 현지 뉴스 및 공식 기사(SEC filings, PR Newswire, Bloomberg, Reuters 등)를 우선 검색하고 영어 기사 위주로 분석에 적극 반영해야 해. 한국어 번역본이나 국내 요약 기사에 의존하지 마라.\n특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 다뤄줘.`;
-            } else {
-              promptContents = `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 "${companyName}" (${expandedQuery})에 대한 중요 기업 실시간 뉴스를 검색하고 분석해줘.
-특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 골고루 검색 반영해야 해.`;
-            }
-
-            response = await genAIClient.models.generateContent({
-              model: model,
-              contents: promptContents,
-              config: {
-                tools: [{ googleSearch: {} }],
-                systemInstruction: `너는 주식 분석 플랫폼 'Signnith'의 금융 전문 AI 에이전트야.
-제공된 구글 뉴스 검색 결과를 바탕으로, 아래의 양식에 맞추어 마크다운 형식으로 분석을 작성해라.
-실시간 검색 결과에 명시되지 않은 사실을 지어내거나(환각) 추측하는 것은 엄격히 금지된다. 반드시 검색된 사실에 기반하여 팩트와 수치 중심으로 작성해라.
-특히 '시장 영향 분석'과 '투자자 인사이트'는 검색된 뉴스의 개별 사안에 특화되도록 구체적으로 기술해야 하며, 상투적이거나 뻔한 템플릿성 서술은 지양해라.
-
-## 1. 핵심 뉴스 요약
-아래의 4대 핵심 금융 정보 차원을 기준으로 실시간 검색 결과에서 추출한 팩트들을 구체적 수치 및 고유 대상을 포함해 자세한 불릿 포인트로 작성하고, 가장 중요한 키워드나 수치는 **굵게(Bold)** 표시해라:
-- **재무 실적 및 성과 (Financials)**: 매출액, 영업이익, 마진율 변동, 실적 전망 등 정량적 성과 지표 요약.
-- **핵심 사업 및 운영 현황 (Operations)**: 플랫폼·서비스·제품의 운영 효율성(이용자 수, 구독 성장률, 가동률, 매출 원가율 등), 주요 계약·파트너십 확장 현황, 상업화 진척 요약. 소프트웨어 기업이라면 ARR, NRR, MAU 등 SaaS 지표를 중심으로 서술해라.
-- **정책, 규제 및 계약 (Regulations & Contracts)**: 정부 보조금/지원금 수혜 및 변동, 인허가 취득 현황, 소송 또는 규제적 위험 요소 요약.
-- **미래 성장 프로젝트 및 동력 (Projects)**: 연구개발(R&D) 마일스톤, 신공장 착공, 설비 투자(CAPEX) 및 신사업 로드맵 요약.
-
-## 2. 시장 영향 분석
-- 이번 뉴스들이 주가, 시장 인지도 및 비즈니스 경쟁력에 미칠 긍정적/부정적 요소를 분석해라.
-- '긍정적', '중립적', '우려됨' 중 하나의 전체 시장 영향 카테고리를 명시하고 그 이유를 설명해라.
-
-## 3. 투자자 인사이트
-- 단기 및 장기 투자자 관점에서 주목해야 할 핵심 리스크 요인 및 기회 요인을 전문적이고 명확한 어조로 제안해라.
-`
-              }
-            });
-            
-            modelUsed = model;
-            console.log(`[EDGE API] Success with model: ${model}`);
-            break;
-          } catch (err) {
-            console.warn(`[EDGE API] Model ${model} failed:`, err.message);
-            lastError = err;
-          }
-        }
-
-        if (!response) {
-          throw lastError || new Error('All edge models failed');
-        }
-
-        // Parse search grounding metadata
-        const candidate = response.candidates?.[0];
-        const groundingMetadata = candidate?.groundingMetadata || null;
-
-        const sources = [];
-        if (groundingMetadata && groundingMetadata.groundingChunks) {
-          groundingMetadata.groundingChunks.forEach(chunk => {
-            if (chunk.web) {
-              sources.push({
-                title: chunk.web.title,
-                url: chunk.web.uri
-              });
-            }
-          });
-        }
-
-        return new Response(
-          JSON.stringify({
-            insight: response.text,
-            sources: sources.length > 0 ? sources : null,
-            modelUsed
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
-
-      } catch (apiError) {
-        console.warn(`[EDGE API] Gemini call failed, falling back to Live RSS. Reason: ${apiError.message}`);
-        const demoData = await getMockData(companyName);
-        return new Response(
-          JSON.stringify(demoData),
-          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
-      }
-
-    } catch (globalError) {
-      console.error('[EDGE GLOBAL] Fatal error:', globalError.message);
-      return new Response(
-        JSON.stringify({ error: 'Serverless Worker internal error.', details: globalError.message }),
-        { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-      );
-    }
-  }
-};

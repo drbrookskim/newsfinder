@@ -412,13 +412,21 @@ async function fetchNaverNews(query, naverClientId, naverClientSecret, isFallbac
         'User-Agent': 'SignnithNewsFinder/1.0'
       }
     });
-    if (!res.ok) { console.warn('[Naver News] Status:', res.status); return []; }
+    if (!res.ok) { 
+      console.warn('[Naver News] Status:', res.status); 
+      return !isFallback ? (await fetchGoogleNewsRSS(query) || []) : [];
+    }
     const json = await res.json();
     const items = json.items || [];
     
     // Fallback if no news found for the specific company
     if (items.length === 0 && !isFallback) {
-      return await fetchNaverNews('주식 증권', naverClientId, naverClientSecret, true);
+      const fallbackNaver = await fetchNaverNews('주식 증권', naverClientId, naverClientSecret, true);
+      if (fallbackNaver && fallbackNaver.length > 0) {
+        return fallbackNaver;
+      }
+      // Ultimate fallback to Google News if Naver is completely empty
+      return await fetchGoogleNewsRSS(query) || [];
     }
     
     return items.slice(0, 8).map(item => ({

@@ -7,10 +7,12 @@
 const STORAGE_KEY = 'signnith_news_finder_history';
 let searchHistory = [];
 
-// --- API Configuration for Serverless edge ---
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? ''
-  : 'https://newsfinder.drbrooks-kim.workers.dev'; // 💡 Replace with your actual Cloudflare Worker URL after deployment!
+// --- API Configuration for
+// Base URL for API requests.
+// Local dev uses port 3000, production (GitHub Pages) calls the Cloudflare Worker backend.
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:3000'
+  : 'https://newsfinder.drbrooks-kim.workers.dev';
 
 // DOM Elements
 const searchForm = document.getElementById('search-form');

@@ -359,18 +359,7 @@ function renderResults(companyName, data) {
   const impact = detectMarketImpact(insightText);
   updateImpactBadge(impact);
 
-  // Update tech badge with the actually used model
-  if (data.modelUsed) {
-    const modelLabel = formatModelName(data.modelUsed);
-    const techBadgeText = document.querySelector('.tech-badge span:last-child');
-    if (techBadgeText) {
-      if (modelLabel === 'AI Engine Working') {
-        techBadgeText.textContent = modelLabel;
-      } else {
-        techBadgeText.textContent = `${modelLabel} Active`;
-      }
-    }
-  }
+
 
   // Parse and display markdown body
   insightMarkdown.innerHTML = customMarkdownParser(insightText);

@@ -401,7 +401,7 @@ async function fetchStockPrice(ticker) {
 }
 
 // ── Naver News API Fetcher ─────────────────────────────────────────────────
-async function fetchNaverNews(query, naverClientId, naverClientSecret) {
+async function fetchNaverNews(query, naverClientId, naverClientSecret, isFallback = false) {
   if (!naverClientId || !naverClientSecret) return [];
   try {
     const url = `https://openapi.naver.com/v1/search/news.json?query=${encodeURIComponent(query)}&display=10&sort=date`;
@@ -414,8 +414,17 @@ async function fetchNaverNews(query, naverClientId, naverClientSecret) {
     });
     if (!res.ok) { console.warn('[Naver News] Status:', res.status); return []; }
     const json = await res.json();
-    return (json.items || []).slice(0, 8).map(item => ({
+    const items = json.items || [];
+    
+    // Fallback if no news found for the specific company
+    if (items.length === 0 && !isFallback) {
+      return await fetchNaverNews('글로벌 경제 증시 속보', naverClientId, naverClientSecret, true);
+    }
+    
+    return items.slice(0, 8).map(item => ({
       title: item.title.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'"),
+      description: (item.description || '').replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&'),
+      pubDate: item.pubDate || '',
       url: item.link || item.originallink || '',
       publisher: '네이버 뉴스'
     }));

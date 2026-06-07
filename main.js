@@ -398,7 +398,7 @@ function renderResults(companyName, data) {
       });
       naverNewsSidebar.innerHTML = html;
     } else {
-      naverNewsSidebar.innerHTML = '<div class="news-empty-state" style="text-align:center; padding: 20px; color:rgba(255,255,255,0.5);">해당 종목의 최신 네이버 속보가 없습니다.</div>';
+      naverNewsSidebar.innerHTML = '<div class="news-empty-state" style="text-align:center; padding: 20px; color:rgba(255,255,255,0.5);">최신 뉴스 데이터를 불러올 수 없습니다.</div>';
     }
   }
 

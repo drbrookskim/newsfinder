@@ -72,6 +72,15 @@ async function fetchAndDisplayStockPrice(companyName) {
     document.getElementById('stock-exchange').textContent = data.exchange || '';
     document.getElementById('stock-price').textContent = `${currency}${fmt(data.price)}`;
     
+    const priceLabel = document.getElementById('stock-price-label');
+    if (priceLabel) {
+      if (data.marketState === 'CLOSED' || data.marketState === 'POST' || data.marketState === 'PRE') {
+        priceLabel.textContent = '장 마감 주가';
+      } else {
+        priceLabel.textContent = '현재 주가';
+      }
+    }
+    
     const changeEl = document.getElementById('stock-change');
     const sign = data.change >= 0 ? '▲' : '▼';
     const pct = Math.abs(data.changePercent).toFixed(2);

@@ -159,6 +159,45 @@ export default {
 
 ## 3. 투자자 인사이트
 - 단기 및 장기 투자자 관점에서 주목해야 할 핵심 리스크 요인 및 기회 요인을 전문적이고 명확한 어조로 제안해라.
+
+## 4. 3C 전략 분석 (JSON)
+위의 마크다운 분석을 모두 작성한 후, 반드시 아래 형식의 JSON을 \`\`\`json 코드 블록 안에 출력하라.
+각 항목의 signal은 뉴스 팩트 기반의 한 문장 핵심 시그널이고, bullets는 구체적인 팩트 3개다.
+환각 금지: 검색된 뉴스에 근거한 팩트만 작성하라.
+
+\`\`\`json
+{
+  "threeC": {
+    "customer": {
+      "label": "Customer (고객·시장)",
+      "signal": "이 뉴스가 시장 수요나 고객 행동에 보내는 핵심 신호 한 문장",
+      "bullets": [
+        "고객/시장 관련 팩트 1",
+        "고객/시장 관련 팩트 2",
+        "고객/시장 관련 팩트 3"
+      ]
+    },
+    "company": {
+      "label": "Company (자사·내부)",
+      "signal": "이 뉴스가 기업의 역량·포지셔닝에 미치는 핵심 의미 한 문장",
+      "bullets": [
+        "자사 역량 관련 팩트 1",
+        "자사 역량 관련 팩트 2",
+        "자사 역량 관련 팩트 3"
+      ]
+    },
+    "competitor": {
+      "label": "Competitor (경쟁사·구도)",
+      "signal": "이 뉴스가 경쟁 구도 변화에 미치는 핵심 의미 한 문장",
+      "bullets": [
+        "경쟁 구도 관련 팩트 1",
+        "경쟁 구도 관련 팩트 2",
+        "경쟁 구도 관련 팩트 3"
+      ]
+    }
+  }
+}
+\`\`\`
 `
           }
         });
@@ -193,9 +232,25 @@ export default {
       });
     }
 
+    // Extract 3C JSON block from insight text
+    let rawInsight = response.text || '';
+    let threeC = null;
+    const jsonBlockMatch = rawInsight.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonBlockMatch) {
+      try {
+        const parsed = JSON.parse(jsonBlockMatch[1]);
+        if (parsed.threeC) threeC = parsed.threeC;
+      } catch (e) {
+        console.warn('[3C] Failed to parse 3C JSON block:', e.message);
+      }
+      // Strip the JSON block from the markdown insight so it doesn't render as code
+      rawInsight = rawInsight.replace(/```json[\s\S]*?```/g, '').trim();
+    }
+
     // Return results
     return createResponse({
-      insight: response.text,
+      insight: rawInsight,
+      threeC,
       sources: sources.length > 0 ? sources : null,
       modelUsed,
       naverNewsItems

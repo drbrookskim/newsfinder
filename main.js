@@ -209,7 +209,16 @@ function setupEventListeners() {
       switchPanel('idle');
     }
   });
+
+  // --- Analysis Tab Switching ---
+  document.addEventListener('click', (e) => {
+    const tabBtn = e.target.closest('.tab-btn');
+    if (tabBtn && tabBtn.dataset.tab) {
+      switchAnalysisTab(tabBtn.dataset.tab);
+    }
+  });
 }
+
 
 // --- Navigation & Panel Orchestration ---
 function switchPanel(panelName) {
@@ -369,13 +378,17 @@ function renderResults(companyName, data) {
   const impact = detectMarketImpact(insightText);
   updateImpactBadge(impact);
 
-
-
   // Parse and display markdown body
   insightMarkdown.innerHTML = customMarkdownParser(insightText);
 
   // Render sources grid
   renderSources(data.sources);
+
+  // Render 3C analysis
+  render3CAnalysis(data.threeC);
+
+  // Reset to AI tab on new search
+  switchAnalysisTab('ai');
 
   // Render Naver News Sidebar
   const naverNewsSidebar = document.getElementById('naver-news-sidebar');
@@ -408,6 +421,85 @@ function renderResults(companyName, data) {
     addSummaryToMarquee(companyName, extractedSummary, impact);
   }
 }
+
+// --- Tab Switching for Analysis Panel ---
+function switchAnalysisTab(tabName) {
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabPanels = document.querySelectorAll('.tab-panel');
+
+  tabBtns.forEach(btn => {
+    const isActive = btn.dataset.tab === tabName;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+
+  tabPanels.forEach(panel => {
+    const isActive = panel.id === `panel-${tabName}`;
+    panel.classList.toggle('active', isActive);
+    if (isActive) {
+      panel.removeAttribute('hidden');
+    } else {
+      panel.setAttribute('hidden', '');
+    }
+  });
+}
+
+// --- 3C Analysis Renderer ---
+function render3CAnalysis(threeC) {
+  const container = document.getElementById('threec-container');
+  if (!container) return;
+
+  if (!threeC) {
+    container.innerHTML = `
+      <div class="threec-empty">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.3"><circle cx="9" cy="12" r="3"/><circle cx="18" cy="5" r="3"/><circle cx="18" cy="19" r="3"/><path d="M11.83 11.17L15.17 6.83M11.83 12.83L15.17 17.17"/></svg>
+        <p>3C 분석 데이터를 가져오지 못했습니다.</p>
+      </div>`;
+    return;
+  }
+
+  const cardDefs = [
+    {
+      key: 'customer',
+      accent: 'threec-customer',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`
+    },
+    {
+      key: 'company',
+      accent: 'threec-company',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M3 9h18M9 21V9"/></svg>`
+    },
+    {
+      key: 'competitor',
+      accent: 'threec-competitor',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`
+    }
+  ];
+
+  const html = `
+    <div class="threec-grid">
+      ${cardDefs.map(({ key, accent, icon }) => {
+        const item = threeC[key];
+        if (!item) return '';
+        const bullets = (item.bullets || []).map(b =>
+          `<li>${b.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`
+        ).join('');
+        return `
+          <div class="threec-card ${accent}">
+            <div class="threec-card-header">
+              <span class="threec-icon">${icon}</span>
+              <span class="threec-label">${item.label || key}</span>
+            </div>
+            <p class="threec-signal">${(item.signal || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+            <ul class="threec-bullets">${bullets}</ul>
+          </div>`;
+      }).join('')}
+    </div>`;
+
+  container.innerHTML = html;
+}
+
+
 
 // Helper to format model name nicely
 function formatModelName(modelName) {

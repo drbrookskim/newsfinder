@@ -263,12 +263,39 @@
             </div>
           </div>
 
-          <!-- Analysis Content Card -->
+          <!-- Analysis Content Card with Tab Navigation -->
           <div class="insight-content-card glass-panel">
-            <div class="markdown-body" id="insight-markdown">
-              <!-- Dynamically populated -->
+            <!-- Tab bar -->
+            <div class="analysis-tabs" role="tablist">
+              <button id="tab-ai" class="tab-btn active" role="tab" aria-selected="true" aria-controls="panel-ai" data-tab="ai">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                AI 뉴스 분석
+              </button>
+              <button id="tab-3c" class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-3c" data-tab="3c">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="3"/><circle cx="18" cy="5" r="3"/><circle cx="18" cy="19" r="3"/><path d="M11.83 11.17L15.17 6.83M11.83 12.83L15.17 17.17"/></svg>
+                3C 전략 분석
+              </button>
+            </div>
+
+            <!-- Tab Panel: AI 뉴스 분석 -->
+            <div id="panel-ai" class="tab-panel active" role="tabpanel" aria-labelledby="tab-ai">
+              <div class="markdown-body" id="insight-markdown">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- Tab Panel: 3C 전략 분석 -->
+            <div id="panel-3c" class="tab-panel" role="tabpanel" aria-labelledby="tab-3c" hidden>
+              <div id="threec-container">
+                <!-- Dynamically populated by main.js render3CAnalysis() -->
+                <div class="threec-empty">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.3"><circle cx="9" cy="12" r="3"/><circle cx="18" cy="5" r="3"/><circle cx="18" cy="19" r="3"/><path d="M11.83 11.17L15.17 6.83M11.83 12.83L15.17 17.17"/></svg>
+                  <p>분석 결과를 기다리는 중...</p>
+                </div>
+              </div>
             </div>
           </div>
+
         </div>
 
           <!-- Naver News Bottom Feed -->

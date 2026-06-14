@@ -1048,9 +1048,208 @@ h1, h2, h3, h4, .brand-name, .glow-btn, .trending-tag-btn, .verified-badge {
 
 /* Insight Core Document Report */
 .insight-content-card {
-  padding: 32px;
+  padding: 0;
   border-color: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
 }
+
+/* ==========================================================================
+   Analysis Tab Navigation
+   ========================================================================== */
+
+.analysis-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 12px 16px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px 11px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px 6px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  font-family: var(--font-primary);
+  letter-spacing: 0;
+  margin-bottom: -1px;
+}
+
+.tab-btn svg {
+  flex-shrink: 0;
+}
+
+.tab-btn:hover {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tab-btn.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-violet);
+}
+
+.tab-panel {
+  padding: 28px 32px;
+}
+
+.tab-panel[hidden] {
+  display: none;
+}
+
+/* ==========================================================================
+   3C Analysis Card Grid
+   ========================================================================== */
+
+.threec-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.threec-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 760px) {
+  .threec-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.threec-card {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--border-radius-md);
+  padding: 18px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: var(--transition-smooth);
+  border-top-width: 3px;
+}
+
+.threec-card:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Customer — 청록: 시장·수요 신호 */
+.threec-customer {
+  border-top-color: #06b6d4;
+}
+.threec-customer .threec-icon svg {
+  stroke: #06b6d4;
+}
+.threec-customer .threec-label {
+  color: #22d3ee;
+}
+
+/* Company — 보라: 내부 역량 */
+.threec-company {
+  border-top-color: #8b5cf6;
+}
+.threec-company .threec-icon svg {
+  stroke: #8b5cf6;
+}
+.threec-company .threec-label {
+  color: #a78bfa;
+}
+
+/* Competitor — 주황: 경쟁 구도 */
+.threec-competitor {
+  border-top-color: #f59e0b;
+}
+.threec-competitor .threec-icon svg {
+  stroke: #f59e0b;
+}
+.threec-competitor .threec-label {
+  color: #fbbf24;
+}
+
+.threec-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.threec-icon {
+  display: flex;
+  align-items: center;
+}
+
+.threec-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.threec-signal {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin: 0;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  border-left: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+.threec-bullets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.threec-bullets li {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  padding-left: 14px;
+  position: relative;
+}
+
+.threec-bullets li::before {
+  content: '·';
+  position: absolute;
+  left: 4px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+/* Light mode adjustments */
+body.light-mode .analysis-tabs {
+  background: rgba(0, 0, 0, 0.04);
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+body.light-mode .threec-card {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+body.light-mode .threec-signal {
+  background: rgba(0, 0, 0, 0.03);
+  border-left-color: rgba(0, 0, 0, 0.12);
+}
+
 
 .markdown-body {
   font-size: 14px;

@@ -183,21 +183,8 @@ function setupEventListeners() {
     });
   }
 
-  // --- Grid Toggle Manager (Müller-Brockmann UX) ---
-  const themeToggleBtn = document.getElementById('theme-toggle-btn');
-  if (themeToggleBtn) {
-    themeToggleBtn.addEventListener('click', () => {
-      document.body.classList.toggle('show-grid');
-    });
-  }
 
-  // Keyboard shortcut Ctrl+G for Grid Overlay
-  document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.key.toLowerCase() === 'g') {
-      e.preventDefault();
-      document.body.classList.toggle('show-grid');
-    }
-  });
+
 
   // Error panel retry
   retryBtn.addEventListener('click', () => {

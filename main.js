@@ -127,18 +127,22 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupEventListeners() {
   // Input clear button behavior
   companyInput.addEventListener('input', () => {
-    if (companyInput.value.trim().length > 0) {
-      clearInputBtn.style.display = 'flex';
-    } else {
-      clearInputBtn.style.display = 'none';
+    if (clearInputBtn) {
+      if (companyInput.value.trim().length > 0) {
+        clearInputBtn.style.display = 'flex';
+      } else {
+        clearInputBtn.style.display = 'none';
+      }
     }
   });
 
-  clearInputBtn.addEventListener('click', () => {
-    companyInput.value = '';
-    clearInputBtn.style.display = 'none';
-    companyInput.focus();
-  });
+  if (clearInputBtn) {
+    clearInputBtn.addEventListener('click', () => {
+      companyInput.value = '';
+      clearInputBtn.style.display = 'none';
+      companyInput.focus();
+    });
+  }
 
   // Submit search query
   searchForm.addEventListener('submit', (e) => {
@@ -154,7 +158,7 @@ function setupEventListeners() {
     btn.addEventListener('click', () => {
       const company = btn.getAttribute('data-company');
       companyInput.value = company;
-      clearInputBtn.style.display = 'flex';
+      if (clearInputBtn) clearInputBtn.style.display = 'flex';
       performAnalysis(company);
     });
   });
@@ -723,7 +727,7 @@ function renderHistoryUI() {
         return;
       }
       companyInput.value = item.name;
-      clearInputBtn.style.display = 'flex';
+      if (clearInputBtn) clearInputBtn.style.display = 'flex';
       performAnalysis(item.name);
     });
 
@@ -751,7 +755,7 @@ function renderHistoryUI() {
         btn.addEventListener('click', (e) => {
           e.preventDefault();
           companyInput.value = item.name;
-          clearInputBtn.style.display = 'flex';
+          if (clearInputBtn) clearInputBtn.style.display = 'flex';
           performAnalysis(item.name);
         });
         recentTagsContainer.appendChild(btn);

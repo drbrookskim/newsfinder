@@ -276,7 +276,9 @@ ul, ol {
   display: none;
 }
 .workspace-panel.active {
-  display: contents; /* Allows children to participate in the grid */
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
 }
 
 /* Idle Panel */

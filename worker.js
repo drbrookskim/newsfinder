@@ -39,14 +39,11 @@ export default {
     }
 
     if (url.pathname === '/api/analyze' && request.method === 'POST') {
-      
   const { companyName } = await request.json();
 
   if (!companyName || typeof companyName !== 'string' || !companyName.trim()) {
     return createResponse({ error: 'companyName은 필수 항목이며 유효한 문자열이어야 합니다.' });
   }
-
-  const dynamicApiKey = globalEnv.GEMINI_API_KEY;
 
   // Calculate today's date for strict 48-hour search context
   const today = new Date();
@@ -57,10 +54,14 @@ export default {
     timeZone: 'Asia/Seoul'
   });
 
-  // Always fetch Naver News in parallel (whether we hit demo mode or real API)
   let naverNewsItems = [];
+  let rssNewsText = '';
+  let sources = [];
+  
   try {
     const expandedQuery = expandSearchQuery(companyName);
+    
+    // 1. Fetch Naver News
     const naverNews = await fetchNaverNews(expandedQuery, globalEnv.NAVER_CLIENT_ID, globalEnv.NAVER_CLIENT_SECRET);
     naverNewsItems = naverNews.map(news => ({
       title: news.title,
@@ -68,193 +69,88 @@ export default {
       pubDate: news.pubDate,
       url: news.url || news.link
     }));
-  } catch(e) {
-    console.warn("Failed to fetch Naver News:", e);
-  }
 
-  // If API Key is completely missing, serve live Google RSS-backed Demo Mode
-  if (!dynamicApiKey) {
-    console.log(`[DEMO MODE] No API Key configured. Serving live RSS mock analysis for: ${companyName}...`);
-    const demoData = await getMockData(companyName);
-    return createResponse({ ...demoData, naverNewsItems });
+    // 2. Fetch Google RSS News to use as AI context
+    const liveNews = await fetchGoogleNewsRSS(companyName);
+    if (liveNews && liveNews.length > 0) {
+      const topNews = liveNews.slice(0, 5); // Take top 5 news
+      rssNewsText = topNews.map((n, i) => `[${i+1}] 제목: ${n.title}\n내용: ${n.snippet}`).join('\n\n');
+      sources = topNews.map(n => ({ title: n.title, url: n.link }));
+    } else {
+      rssNewsText = '최근 뉴스를 찾을 수 없습니다.';
+    }
+  } catch(e) {
+    console.warn("Failed to fetch news context:", e);
+    rssNewsText = '뉴스 검색 중 오류 발생';
   }
 
   try {
-    const genAIClient = new GoogleGenAI({ apiKey: dynamicApiKey });
-    console.log(`Analyzing news for company: ${companyName}...`);
+    if (!globalEnv.AI) {
+      throw new Error('Cloudflare AI binding is not configured in wrangler.toml');
+    }
 
-    // Define model priority list
-    const primaryModel = globalEnv.GEMINI_MODEL || 'gemini-3.5-flash';
-    const modelsToTry = [primaryModel];
+    console.log(`Analyzing news for company: ${companyName} via CF AI...`);
+    const model = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
     
-    // Append alternative models if not already present
-    const alternatives = ['gemini-3.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
-    alternatives.forEach(alt => {
-      if (!modelsToTry.includes(alt)) {
-        modelsToTry.push(alt);
-      }
-    });
+    // Determine industry hint
+    const industryLower = companyName.toLowerCase();
+    const isTechCompany = ['tech', 'soft', 'cloud', 'saas', 'data', 'git', 'dev'].some(k => industryLower.includes(k));
+    let industryHint = '';
+    if (isTechCompany) {
+      industryHint = '\n[업종 지침] 소프트웨어/SaaS/테크 기업. ARR, NRR, 플랫폼 성장을 중심으로 서술.';
+    }
 
-    let response = null;
-    let lastError = null;
-    let modelUsed = '';
-
-    for (const model of modelsToTry) {
-      try {
-        console.log(`Attempting analysis using model: ${model}...`);
-        const expandedQuery = expandSearchQuery(companyName);
-        const hasEnglish = /[a-zA-Z]/.test(expandedQuery);
-        
-        let promptContents = '';
-        
-        // Detect industry to add specific analytical context to prompt
-        const industryLower = (companyName + ' ' + expandedQuery).toLowerCase();
-        const isTechCompany = ['tech', 'soft', 'cloud', 'saas', 'data', 'git', 'dev', 'ops',
-          'platform', 'cyber', 'security', 'network', 'sys', 'lab', 'ware', 'code',
-          'digital', 'api', 'gitlab', 'salesforce', 'servicenow', 'workday', 'snowflake',
-          'datadog', 'crowdstrike', 'hubspot', 'atlassian', 'mongodb', 'adobe', 'oracle',
-          'sap', 'autodesk', 'zoom', 'shopify', 'okta', 'fortinet'].some(k => industryLower.includes(k));
-        const isFinanceCompany = ['bank', 'finance', 'financial', 'invest', 'fund', 'payment',
-          'capital', 'insurance', 'asset', 'visa', 'mastercard', 'paypal'].some(k => industryLower.includes(k));
-        const isBioCompany = ['bio', 'pharma', 'therapeutics', 'health', 'medical', 'gene', 'clinical'].some(k => industryLower.includes(k));
-        
-        let industryHint = '';
-        if (isTechCompany) {
-          industryHint = '\n[업종 지침] 이 기업은 소프트웨어/SaaS/클라우드/테크 기업이므로, 분석 시 ARR(연간 반복 매출), NRR(순 매출 유지율), 구독 매출 성장률, 플랫폼 MAU·DAU, 클라우드 매출 성장, 총마진(Gross Margin), 영업비용(OpEx) 등 소프트웨어 업계 KPI를 중심으로 분석해야 하며, 제조업 원자재, 공장 시설, 생산 가동률 등의 내용은 절대 포함하지 마라.';
-        } else if (isFinanceCompany) {
-          industryHint = '\n[업종 지침] 이 기업은 금융/핀테크 기업이므로, NIM(순이자마진), BIS비율, ROE, 대출 성장률, 수수료 수익, AUM 등 금융업 핵심 지표를 중심으로 분석해야 한다.';
-        } else if (isBioCompany) {
-          industryHint = '\n[업종 지침] 이 기업은 바이오/제약 기업이므로, 임상 파이프라인 진행 상황, FDA/EMA 인허가 단계, 매출 로열티 및 라이선스 수익, R&D 지출 등을 중심으로 분석해야 한다.';
-        }
-        
-        if (hasEnglish) {
-          promptContents = `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 "${companyName}" (${expandedQuery})에 대한 실시간 중요 뉴스를 검색하고 분석해줘.
-이 기업은 미국/글로벌 시장 기업이므로, 실시간 구글 검색(googleSearch tool)을 실행할 때 반드시 영문 검색어(${expandedQuery})를 검색 쿼리로 사용하여 글로벌/미국 현지 뉴스 및 공식 기사(SEC filings, PR Newswire, Bloomberg, Reuters 등)를 우선 검색하고 영어 기사 위주로 분석에 적극 반영해야 해. 한국어 번역본이나 국내 요약 기사에 의존하지 마라.
-특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 다뤄줘.${industryHint}`;
-        } else {
-          promptContents = `오늘 날짜(${formattedDate}) 기준, 구글 뉴스에서 "${companyName}" (${expandedQuery})에 대한 중요 기업 실시간 뉴스를 검색하고 분석해줘.
-특히 기업의 1) 재무 실적 및 성과, 2) 핵심 사업 및 운영 현황, 3) 정책·규제·인허가 및 계약 관련 주요 쟁점, 4) 미래 성장 프로젝트 및 동력에 관한 최신 핵심 사실을 골고루 검색 반영해야 해.${industryHint}`;
-        }
-
-        response = await genAIClient.models.generateContent({
-          model: model,
-          contents: promptContents,
-          config: {
-            tools: [{ googleSearch: {} }], // Enable Real-time Google Search Grounding
-            systemInstruction: `너는 주식 분석 플랫폼 'Signnith'의 금융 전문 AI 에이전트야.
-제공된 구글 뉴스 검색 결과를 바탕으로, 아래의 양식에 맞추어 마크다운 형식으로 분석을 작성해라.
-실시간 검색 결과에 명시되지 않은 사실을 지어내거나(환각) 추측하는 것은 엄격히 금지된다. 반드시 검색된 사실에 기반하여 팩트와 수치 중심으로 작성해라.
-특히 '시장 영향 분석'과 '투자자 인사이트'는 검색된 뉴스의 개별 사안에 특화되도록 구체적으로 기술해야 하며, 상투적이거나 뻔한 템플릿성 서술은 지양해라.
-
+    // --- 1. Main Insight Generation ---
+    const mainMessages = [
+      {
+        role: "system",
+        content: `너는 주식 분석 플랫폼 'Signnith'의 금융 전문 AI 에이전트야. 제공된 뉴스 텍스트만을 바탕으로 마크다운 형식으로 분석을 작성해라. 뉴스에 없는 내용을 지어내지 마라.
 ## 1. 핵심 뉴스 요약
-아래의 4대 핵심 금융 정보 차원을 기준으로 실시간 검색 결과에서 추출한 팩트들을 구체적 수치 및 고유 대상을 포함해 자세한 불릿 포인트로 작성하고, 가장 중요한 키워드나 수치는 **굵게(Bold)** 표시해라:
-- **재무 실적 및 성과 (Financials)**: 매출액, 영업이익, 마진율 변동, 실적 전망 등 정량적 성과 지표 요약.
-- **핵심 사업 및 운영 현황 (Operations)**: 플랫폼·서비스·제품의 운영 효율성(이용자 수, 구독 성장률, 가동률, 매출 원가율 등), 주요 계약·파트너십 확장 현황, 상업화 진척 요약. 소프트웨어 기업이라면 ARR, NRR, MAU 등 SaaS 지표를 중심으로 서술해라.
-- **정책, 규제 및 계약 (Regulations & Contracts)**: 정부 보조금/지원금 수혜 및 변동, 인허가 취득 현황, 소송 또는 규제적 위험 요소 요약.
-- **미래 성장 프로젝트 및 동력 (Projects)**: 연구개발(R&D) 마일스톤, 신공장 착공, 설비 투자(CAPEX) 및 신사업 로드맵 요약.
-
+(재무 실적, 핵심 사업, 규제, 미래 성장 동력 등)
 ## 2. 시장 영향 분석
-- 이번 뉴스들이 주가, 시장 인지도 및 비즈니스 경쟁력에 미칠 긍정적/부정적 요소를 분석해라.
-- '긍정적', '중립적', '우려됨' 중 하나의 전체 시장 영향 카테고리를 명시하고 그 이유를 설명해라.
-
-## 3. 투자자 인사이트
-- 단기 및 장기 투자자 관점에서 주목해야 할 핵심 리스크 요인 및 기회 요인을 전문적이고 명확한 어조로 제안해라.
-`
-          }
-        });
-        
-        modelUsed = model;
-        console.log(`Successfully completed analysis using model: ${model}`);
-        break; // Exit loop on success
-      } catch (err) {
-        console.warn(`Model ${model} call failed:`, err.message);
-        lastError = err;
+('긍정적', '중립적', '우려됨' 중 하나를 명시)
+## 3. 투자자 인사이트`
+      },
+      {
+        role: "user",
+        content: `오늘 날짜(${formattedDate}) 기준, "${companyName}"에 대한 실시간 뉴스 요약 데이터다:\n\n${rssNewsText}\n\n이 데이터를 바탕으로 정해진 마크다운 포맷으로 분석 리포트를 작성해줘.${industryHint}`
       }
-    }
+    ];
 
-    if (!response) {
-      throw lastError || new Error('모든 모델 호출 실패');
-    }
+    const cfInsightResponse = await globalEnv.AI.run(model, { messages: mainMessages });
+    const rawInsight = cfInsightResponse.response || cfInsightResponse;
 
-    // Extract search grounding metadata
-    const candidate = response.candidates?.[0];
-    const groundingMetadata = candidate?.groundingMetadata || null;
-
-    // Structure source documents
-    const sources = [];
-    if (groundingMetadata && groundingMetadata.groundingChunks) {
-      groundingMetadata.groundingChunks.forEach(chunk => {
-        if (chunk.web) {
-          sources.push({
-            title: chunk.web.title,
-            url: chunk.web.uri
-          });
-        }
-      });
-    }
-
-    let rawInsight = response.text || '';
-    let threeC = null;
-
-    // Use Cloudflare Workers AI for 3C Analysis to avoid Gemini Token limit / strictness
-    try {
-      if (globalEnv.AI) {
-        console.log(`[3C] Generating 3C Analysis using Cloudflare Workers AI...`);
-        const threeCMessages = [
-          {
-            role: "system",
-            content: "You are a structured business analyst. You MUST respond ONLY with valid JSON. Do not wrap in ```json, do not add any explanation."
-          },
-          {
-            role: "user",
-            content: `다음 종목에 대한 실시간 뉴스 요약과 시장 인사이트를 바탕으로,
-반드시 아래 JSON 구조에 맞추어 3C (Customer, Company, Competitor) 전략 분석 결과를 작성하라.
-어떤 추가 텍스트나 마크다운 코드블록(json 등) 없이 오직 JSON만 반환할 것.
-
-[종목명]: ${companyName}
-[분석 컨텍스트]:
-${rawInsight}
-
-[출력 JSON 구조]:
+    // --- 2. 3C Strategy Generation ---
+    const threeCMessages = [
+      {
+        role: "system",
+        content: "You are a structured business analyst. You MUST respond ONLY with valid JSON. Do not wrap in ```json, do not add any explanation."
+      },
+      {
+        role: "user",
+        content: `다음 뉴스 컨텍스트를 바탕으로 JSON 구조에 맞추어 3C (Customer, Company, Competitor) 전략 분석 결과를 작성하라.\n\n[종목명]: ${companyName}\n[뉴스 컨텍스트]:\n${rssNewsText}\n\n[출력 JSON 구조]:
 {
-  "customer": {
-    "label": "Customer (고객·시장)",
-    "signal": "시장/고객 관련 핵심 1문장",
-    "bullets": ["상세 내용 1", "상세 내용 2", "상세 내용 3"]
-  },
-  "company": {
-    "label": "Company (자사·내부)",
-    "signal": "자사 동향 관련 핵심 1문장",
-    "bullets": ["상세 내용 1", "상세 내용 2", "상세 내용 3"]
-  },
-  "competitor": {
-    "label": "Competitor (경쟁사·구도)",
-    "signal": "경쟁사/업계 동향 핵심 1문장",
-    "bullets": ["상세 내용 1", "상세 내용 2", "상세 내용 3"]
-  }
+  "customer": { "label": "Customer", "signal": "핵심 1문장", "bullets": ["상세 1", "상세 2"] },
+  "company": { "label": "Company", "signal": "핵심 1문장", "bullets": ["상세 1", "상세 2"] },
+  "competitor": { "label": "Competitor", "signal": "핵심 1문장", "bullets": ["상세 1", "상세 2"] }
 }`
-          }
-        ];
-
-        const cfAiResponse = await globalEnv.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
-          messages: threeCMessages
-        });
-        
-        let rawThreeC = cfAiResponse.response || cfAiResponse;
-        rawThreeC = rawThreeC.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
-        
-        threeC = JSON.parse(rawThreeC);
-        console.log(`[3C] Successfully generated 3C analysis via CF AI.`);
-      } else {
-        console.warn(`[3C] Cloudflare AI binding not found, skipping 3C.`);
       }
-    } catch (e) {
-      console.error(`[3C] Failed to generate 3C analysis via CF AI:`, e.message);
-      threeC = {
-        customer: { label: "Customer", signal: "분석 실패", bullets: ["데이터 파싱 중 오류 발생"] },
-        company: { label: "Company", signal: "분석 실패", bullets: ["데이터 파싱 중 오류 발생"] },
-        competitor: { label: "Competitor", signal: "분석 실패", bullets: ["데이터 파싱 중 오류 발생"] }
-      };
+    ];
+
+    const cfThreeCResponse = await globalEnv.AI.run(model, { messages: threeCMessages });
+    let rawThreeC = cfThreeCResponse.response || cfThreeCResponse;
+    let threeC;
+    try {
+      if (typeof rawThreeC === 'object' && rawThreeC !== null) {
+        // Some models or environments auto-parse the JSON response
+        threeC = rawThreeC;
+      } else {
+        rawThreeC = String(rawThreeC).replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
+        threeC = JSON.parse(rawThreeC);
+      }
+    } catch(e) {
+      console.error("Failed to parse 3C JSON", e, rawThreeC);
+      throw e;
     }
 
     // Return results
@@ -262,19 +158,15 @@ ${rawInsight}
       insight: rawInsight,
       threeC,
       sources: sources.length > 0 ? sources : null,
-      modelUsed,
+      modelUsed: model,
       naverNewsItems
     });
 
   } catch (error) {
-    console.warn('Gemini API failed. Falling back to Live RSS Demo Mode. Error details:', error.message);
-    
-    // Serve live Google RSS-backed Demo Mode fallback
-    console.log(`[DEMO MODE] Falling back to RSS-backed mock analysis for: ${companyName}...`);
+    console.error('CF AI failed. Falling back to Live RSS Demo Mode. Error details:', error.message);
     const demoData = await getMockData(companyName);
     return createResponse({ ...demoData, naverNewsItems, debugError: error.message });
   }
-
     }
 
     return createResponse({ error: 'Not Found' }, 404);

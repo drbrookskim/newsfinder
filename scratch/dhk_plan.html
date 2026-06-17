@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>기획안: 소음 속의 신호 (Signnith News Finder Redesign)</title>
+  <style>
+    :root {
+      --bg: #fafafa;
+      --surface: #ffffff;
+      --text-main: #1a1a1a;
+      --text-muted: #666666;
+      --accent: #2563eb;
+      --border: #e5e5e5;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --text-main: #f8fafc;
+        --text-muted: #94a3b8;
+        --accent: #38bdf8;
+        --border: #334155;
+      }
+    }
+    body {
+      font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    header {
+      margin-bottom: 40px;
+    }
+    h1 {
+      font-size: 2rem;
+      margin: 0 0 10px 0;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      margin: 0 0 16px 0;
+      font-weight: 300;
+    }
+    .chip {
+      display: inline-block;
+      background: rgba(148, 163, 184, 0.2);
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    
+    /* Stage Navigation */
+    .stages {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+      overflow-x: auto;
+    }
+    .stages button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-weight: 500;
+      padding: 8px 16px;
+      cursor: pointer;
+      border-radius: 6px;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .stages button:hover {
+      background: rgba(148, 163, 184, 0.1);
+    }
+    .stages button.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Sections */
+    section {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    section.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Stage 0 */
+    .ladder {
+      border-left: 2px solid var(--border);
+      padding-left: 20px;
+      margin: 24px 0;
+    }
+    .ladder-step {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .ladder-step::before {
+      content: '';
+      position: absolute;
+      left: -25px;
+      top: 10px;
+      width: 10px;
+      height: 2px;
+      background: var(--border);
+    }
+
+    /* Stage 1 */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 20px;
+      border-radius: 12px;
+    }
+    .card h3 {
+      margin: 0 0 8px 0;
+      font-size: 1.05rem;
+      color: var(--accent);
+    }
+    .lens-selector {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 24px;
+      border-radius: 12px;
+      margin-top: 24px;
+    }
+    .lens-options {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .lens-option {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      opacity: 0.5;
+    }
+    .lens-option.selected {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.1);
+      opacity: 1;
+      font-weight: 600;
+    }
+
+    /* Stage 2 */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 24px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 12px 16px;
+      text-align: left;
+    }
+    th {
+      background: rgba(148, 163, 184, 0.05);
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge.must { background: rgba(56, 189, 248, 0.2); color: var(--accent); }
+    .badge.nice { background: rgba(148, 163, 184, 0.2); color: var(--text-muted); }
+    .filter-bar {
+      margin-bottom: 16px;
+      display: flex;
+      gap: 8px;
+    }
+
+    /* Stage 3 */
+    .pruning-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    .before-after {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 20px;
+      border-radius: 12px;
+    }
+    .checklist label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      cursor: pointer;
+    }
+    .checklist input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+    }
+    .pruned {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="plan">
+    <header>
+      <h1>기획안: 소음 속의 신호</h1>
+      <h2 class="subtitle">"시장의 맥락을 1초 만에 짚다"</h2>
+      <div class="chip">가정: 사용자는 화려한 디자인보다 즉각적인 가독성(정보 밀도)을 최우선으로 여긴다.</div>
+    </header>
+
+    <nav class="stages">
+      <button onclick="switchTab(0)" class="active">0 왜</button>
+      <button onclick="switchTab(1)">1 개념</button>
+      <button onclick="switchTab(2)">2 시나리오</button>
+      <button onclick="switchTab(3)">3 가지치기·검증</button>
+      <button onclick="switchTab(4)">4 스토리텔링</button>
+    </nav>
+
+    <!-- Stage 0 -->
+    <section id="stage-0" class="active">
+      <h3>표면적 요청과 진짜 니즈</h3>
+      <p>표면적으로는 "화려하고 멋진 AI 뉴스 검색 사이트"를 원하지만, 5번의 '왜'를 따라가 보면 사용자가 정말 원하는 것은 <strong>'쏟아지는 소음 속에서 내가 투자한 종목의 핵심 신호만 단번에 포착하는 것'</strong>이다.</p>
+      
+      <div class="ladder">
+        <div class="ladder-step"><strong>왜 주식 뉴스를 검색하는가?</strong> 주가가 변동하니까 그 이유를 알고 싶어서.</div>
+        <div class="ladder-step"><strong>왜 포털이나 증권앱을 쓰지 않는가?</strong> 포털은 찌라시와 낚시가 섞여 있고, 증권앱은 무겁고 복잡해서.</div>
+        <div class="ladder-step"><strong>왜 AI를 원하는가?</strong> 수십 개의 기사를 다 읽을 시간이 없으므로, 핵심만 세 줄로 요약해 주기를 원해서.</div>
+        <div class="ladder-step"><strong>진정한 니즈 (Unmet Need):</strong> "시간낭비 없이, 내가 검색한 종목이 지금 움직이는 이유를 1초 만에 보여주는 <strong>초직관적 대시보드</strong>."</div>
+      </div>
+    </section>
+
+    <!-- Stage 1 -->
+    <section id="stage-1">
+      <div class="cards">
+        <div class="card">
+          <h3>핵심 가치 (User Value)</h3>
+          <p><strong>직관성(Intuition)과 시간 절약.</strong> 무언가를 더 보여주는 것이 아니라, 소음을 제거하여 판단의 시간을 줄여주는 가치.</p>
+        </div>
+        <div class="card">
+          <h3>사용자 이점 (Benefit)</h3>
+          <p>검색 한 번으로 현재 주가, 시장의 평가(AI 요약), 최신 팩트(속보)를 한눈에 파악해 투자 결정의 피로도를 낮춘다.</p>
+        </div>
+        <div class="card">
+          <h3>핵심 메시지 (Message)</h3>
+          <p>"시장의 맥락을 1초 만에 짚다."</p>
+        </div>
+        <div class="card">
+          <h3>왜 (명분)</h3>
+          <p>정보 과잉 시대, 개미 투자자들에게 필요한 것은 '더 많은 정보'가 아니라 '정제된 단 하나의 맥락'이기 때문.</p>
+        </div>
+      </div>
+
+      <div class="lens-selector">
+        <h3>포지셔닝 렌즈: 보편성 vs 차별성</h3>
+        <p>수많은 뉴스를 나열하는 보편적인 포털의 형태를 버리고, 가장 중요한 요약과 속보만 극단적으로 좁혀 보여주는 차별성.</p>
+        <div class="lens-options">
+          <div class="lens-option">보편적 뉴스 포털</div>
+          <div class="lens-option selected">차별화된 인사이트 대시보드<br><small>단순 나열이 아닌 맥락 제공</small></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stage 2 -->
+    <section id="stage-2">
+      <h3>사용자 시나리오</h3>
+      <p>특정 상황을 가정하여, 사용자는 장중 '삼성전자'가 급락하는 상황을 접하고, 이 기획이 그것을 <strong>즉각적이고 군더더기 없는 원페이지 뷰</strong>로 해결해 준다.</p>
+      
+      <div class="filter-bar">
+        <button onclick="filterScenario('all')" class="chip">전체 보기</button>
+        <button onclick="filterScenario('must')" class="badge must">Must-have</button>
+        <button onclick="filterScenario('nice')" class="badge nice">Nice-to-have</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>문제 상황 (Problem)</th>
+            <th>해결책 (Solution)</th>
+            <th>우선순위</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="scen-row must">
+            <td>수많은 뉴스를 직접 읽고 해석하기 귀찮음</td>
+            <td>가장 상단에 AI가 분석한 3줄 요약 타일 배치</td>
+            <td><span class="badge must">Must-have</span></td>
+          </tr>
+          <tr class="scen-row must">
+            <td>현재 주가를 보기 위해 다른 탭을 오가야 함</td>
+            <td>종목 검색 즉시 화면 중앙에 거대한 폰트로 주가 표시</td>
+            <td><span class="badge must">Must-have</span></td>
+          </tr>
+          <tr class="scen-row must">
+            <td>원하는 종목에 뉴스가 없을 때 당황함</td>
+            <td>글로벌 증시 요약으로 자동 우회(Fallback)하여 공백 방지</td>
+            <td><span class="badge must">Must-have</span></td>
+          </tr>
+          <tr class="scen-row nice">
+            <td>화면이 밋밋하여 심심함</td>
+            <td>오로라, 유성우 등 화려한 CSS 배경 애니메이션</td>
+            <td><span class="badge nice">Nice-to-have</span></td>
+          </tr>
+          <tr class="scen-row nice">
+            <td>이전에 검색한 종목을 다시 치기 귀찮음</td>
+            <td>검색창 우측에 거대한 팝오버 이력 메뉴</td>
+            <td><span class="badge nice">Nice-to-have</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Stage 3 -->
+    <section id="stage-3">
+      <h3>가지치기 (Pruning) & 가치 검증</h3>
+      <p>"현상은 복잡하다. 법칙은 단순하다. 버릴 게 무엇인지 알아내라."</p>
+
+      <div class="pruning-grid">
+        <div class="before-after">
+          <h4>Before (화려함에 집착)</h4>
+          <ul>
+            <li class="pruned">3중 배경 애니메이션 (오로라, 유성우, 메쉬)</li>
+            <li class="pruned">시선을 분산시키는 큰 검색 이력 드롭다운</li>
+            <li class="pruned">불필요한 투명도와 블러 효과</li>
+          </ul>
+        </div>
+        <div class="before-after">
+          <h4>After (가치 본질에 집중)</h4>
+          <ul>
+            <li>미니멀한 딥 다크 테마 (텍스트 가독성 극대화)</li>
+            <li>검색창 하단 조용한 자동완성 형태의 이력</li>
+            <li>블룸버그 터미널처럼 정보 밀도에 집중한 솔리드 UI</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="lens-selector">
+        <h3>가치 게이트 (Value Check)</h3>
+        <p><strong>"사용자에게 주려는 가치(소음 제거, 1초 파악)가 정말 이게 맞는가?"</strong></p>
+        <div class="checklist">
+          <label><input type="checkbox" checked disabled> 주가와 핵심 요약이 1초 만에 눈에 들어오는가?</label>
+          <label><input type="checkbox" checked disabled> 배경 애니메이션이 텍스트 가독성을 방해하지 않는가?</label>
+          <label class="pruned"><input type="checkbox" disabled> <s>유성우 애니메이션이 사이트를 세련되게 만드는가? (가치 불일치로 제거)</s></label>
+        </div>
+      </div>
+      
+      <p><strong>핍진성 체크:</strong><br>
+      - <strong>구체성:</strong> 주가 텍스트 크기를 키우고 여백을 줄여 집중도를 높임.<br>
+      - <strong>진정성:</strong> 투자자는 예쁜 배경보다 정확하고 빠른 숫자를 원함.<br>
+      - <strong>일관성:</strong> 화려한 우주 테마에서 '프로페셔널 인텔리전스 대시보드' 테마로 전환.</p>
+    </section>
+
+    <!-- Stage 4 -->
+    <section id="stage-4">
+      <h3>스토리텔링 (Storytelling)</h3>
+      <p>정보가 넘쳐나는 시대, 투자의 승패는 '얼마나 빨리 핵심을 짚어내느냐'에 달렸습니다.</p>
+      <p>우리는 화려한 껍데기와 복잡한 메뉴를 모두 걷어내기로 했습니다. 대신, 오직 당신이 검색한 그 종목의 <strong>'현재 가격'</strong>과 <strong>'움직이는 이유'</strong>만을 화면 정중앙에 선명하게 띄웁니다. 이것은 단순한 뉴스 검색기가 아닙니다. 소음을 지우고 신호만 남긴, 당신만의 '원초적 투자 대시보드'입니다.</p>
+      <p><em>오늘 당신의 기획은, 사용자에게서 어떤 소음을 지워줄 것인가?</em></p>
+    </section>
+
+    <footer>
+      리얼 니즈: 맥락 파악 → 개념: 직관성(소음 제거) → 시나리오: 즉각적인 요약 뷰 → 에센스: 시장의 맥락을 1초 만에 짚다.
+    </footer>
+  </div>
+
+  <script>
+    function switchTab(index) {
+      document.querySelectorAll('.stages button').forEach((btn, i) => {
+        btn.className = i === index ? 'active' : '';
+      });
+      document.querySelectorAll('section').forEach((sec, i) => {
+        sec.className = i === index ? 'active' : '';
+      });
+    }
+
+    function filterScenario(type) {
+      document.querySelectorAll('.scen-row').forEach(row => {
+        if (type === 'all') row.style.display = 'table-row';
+        else if (type === 'must') row.style.display = row.classList.contains('must') ? 'table-row' : 'none';
+        else if (type === 'nice') row.style.display = row.classList.contains('nice') ? 'table-row' : 'none';
+      });
+    }
+  </script>
+</body>
+</html>

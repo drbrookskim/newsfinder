@@ -415,3 +415,10 @@ ul, ol {
 .markdown-body li {
   margin-bottom: var(--bl);
 }
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: 32px;
+    line-height: calc(var(--lh) * 2);
+  }
+}

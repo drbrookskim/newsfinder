@@ -119,7 +119,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadHistory();
   loadMarqueeSummaries();
-  runHeroTypewriter();
   setupEventListeners();
   companyInput.focus();
 });
@@ -1551,47 +1550,4 @@ function extractSummaryText(insightText) {
   return '';
 }
 
-// --- Sequential Typewriter Effect for Hero Title ---
-function runHeroTypewriter() {
-  const line1Element = document.getElementById('type-line-1');
-  const line2Element = document.getElementById('type-line-2');
-  if (!line1Element || !line2Element) return;
 
-  const line1Text = "Fragments of News,";
-  const line2Text = "Context through Action";
-  
-  let charIndex1 = 0;
-  let charIndex2 = 0;
-  const speed = 70; // typing speed in milliseconds
-  
-  line1Element.textContent = "";
-  line2Element.textContent = "";
-  
-  line1Element.classList.add('typing-active');
-
-  function typeLine1() {
-    if (charIndex1 < line1Text.length) {
-      line1Element.textContent += line1Text.charAt(charIndex1);
-      charIndex1++;
-      setTimeout(typeLine1, speed);
-    } else {
-      line1Element.classList.remove('typing-active');
-      line2Element.classList.add('typing-active');
-      setTimeout(typeLine2, 250);
-    }
-  }
-
-  function typeLine2() {
-    if (charIndex2 < line2Text.length) {
-      line2Element.textContent += line2Text.charAt(charIndex2);
-      charIndex2++;
-      setTimeout(typeLine2, speed);
-    } else {
-      setTimeout(() => {
-        line2Element.classList.remove('typing-active');
-      }, 3000);
-    }
-  }
-
-  setTimeout(typeLine1, 600);
-}

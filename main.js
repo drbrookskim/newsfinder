@@ -344,24 +344,24 @@ async function performAnalysis(companyName) {
 
 // --- Loading Panel Progressive Control ---
 function updateLoadingStep(step) {
-  // Reset timeline classes
-  stepSearch.classList.remove('active', 'completed');
-  stepAnalyze.classList.remove('active', 'completed');
-  stepRender.classList.remove('active', 'completed');
+  // Reset timeline classes safely
+  if (stepSearch) stepSearch.classList.remove('active', 'completed');
+  if (stepAnalyze) stepAnalyze.classList.remove('active', 'completed');
+  if (stepRender) stepRender.classList.remove('active', 'completed');
 
   if (step === 'search') {
-    stepSearch.classList.add('active');
+    if (stepSearch) stepSearch.classList.add('active');
     loadingTitle.textContent = '실시간 뉴스 검색 중...';
     loadingDesc.textContent = '구글 뉴스 검색 API를 통해 최신 48시간 이내 소식들을 긁어오고 있습니다.';
   } else if (step === 'analyze') {
-    stepSearch.classList.add('completed');
-    stepAnalyze.classList.add('active');
+    if (stepSearch) stepSearch.classList.add('completed');
+    if (stepAnalyze) stepAnalyze.classList.add('active');
     loadingTitle.textContent = '금융 전문 AI 뉴스 분석 중...';
-    loadingDesc.textContent = 'Gemini 2.0 Flash가 관련 뉴스를 기반으로 시장 영향 및 리스크를 검토하고 있습니다.';
+    loadingDesc.textContent = 'Llama 3 모델이 관련 뉴스를 기반으로 시장 영향 및 리스크를 검토하고 있습니다.';
   } else if (step === 'render') {
-    stepSearch.classList.add('completed');
-    stepAnalyze.classList.add('completed');
-    stepRender.classList.add('active');
+    if (stepSearch) stepSearch.classList.add('completed');
+    if (stepAnalyze) stepAnalyze.classList.add('completed');
+    if (stepRender) stepRender.classList.add('active');
     loadingTitle.textContent = '인사이트 도출 및 정리 중...';
     loadingDesc.textContent = '분석된 데이터를 마크다운 포맷으로 가공하여 대시보드 템플릿에 맞추는 중입니다.';
   }

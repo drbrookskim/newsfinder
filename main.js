@@ -180,25 +180,21 @@ function setupEventListeners() {
     });
   }
 
-  // --- Theme Manager (Dark/Light Mode) ---
+  // --- Grid Toggle Manager (Müller-Brockmann UX) ---
   const themeToggleBtn = document.getElementById('theme-toggle-btn');
-  const THEME_STORAGE_KEY = 'signnith_news_finder_theme';
-  
-  // Apply saved theme at startup
-  const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || 'dark';
-  if (savedTheme === 'light') {
-    document.body.classList.add('light-mode');
-  } else {
-    document.body.classList.remove('light-mode');
-  }
-  
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener('click', () => {
-      document.body.classList.toggle('light-mode');
-      const currentTheme = document.body.classList.contains('light-mode') ? 'light' : 'dark';
-      localStorage.setItem(THEME_STORAGE_KEY, currentTheme);
+      document.body.classList.toggle('show-grid');
     });
   }
+
+  // Keyboard shortcut Ctrl+G for Grid Overlay
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key.toLowerCase() === 'g') {
+      e.preventDefault();
+      document.body.classList.toggle('show-grid');
+    }
+  });
 
   // Error panel retry
   retryBtn.addEventListener('click', () => {

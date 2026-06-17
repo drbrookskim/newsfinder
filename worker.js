@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+
 
 let globalEnv = null;
 
@@ -159,45 +159,6 @@ export default {
 
 ## 3. 투자자 인사이트
 - 단기 및 장기 투자자 관점에서 주목해야 할 핵심 리스크 요인 및 기회 요인을 전문적이고 명확한 어조로 제안해라.
-
-## 4. 3C 전략 분석 (JSON)
-위의 마크다운 분석을 모두 작성한 후, 반드시 아래 형식의 JSON을 \`\`\`json 코드 블록 안에 출력하라.
-각 항목의 signal은 뉴스 팩트 기반의 한 문장 핵심 시그널이고, bullets는 구체적인 팩트 3개다.
-환각 금지: 검색된 뉴스에 근거한 팩트만 작성하라.
-
-\`\`\`json
-{
-  "threeC": {
-    "customer": {
-      "label": "Customer (고객·시장)",
-      "signal": "이 뉴스가 시장 수요나 고객 행동에 보내는 핵심 신호 한 문장",
-      "bullets": [
-        "고객/시장 관련 팩트 1",
-        "고객/시장 관련 팩트 2",
-        "고객/시장 관련 팩트 3"
-      ]
-    },
-    "company": {
-      "label": "Company (자사·내부)",
-      "signal": "이 뉴스가 기업의 역량·포지셔닝에 미치는 핵심 의미 한 문장",
-      "bullets": [
-        "자사 역량 관련 팩트 1",
-        "자사 역량 관련 팩트 2",
-        "자사 역량 관련 팩트 3"
-      ]
-    },
-    "competitor": {
-      "label": "Competitor (경쟁사·구도)",
-      "signal": "이 뉴스가 경쟁 구도 변화에 미치는 핵심 의미 한 문장",
-      "bullets": [
-        "경쟁 구도 관련 팩트 1",
-        "경쟁 구도 관련 팩트 2",
-        "경쟁 구도 관련 팩트 3"
-      ]
-    }
-  }
-}
-\`\`\`
 `
           }
         });
@@ -232,19 +193,68 @@ export default {
       });
     }
 
-    // Extract 3C JSON block from insight text
     let rawInsight = response.text || '';
     let threeC = null;
-    const jsonBlockMatch = rawInsight.match(/```json\s*([\s\S]*?)\s*```/);
-    if (jsonBlockMatch) {
-      try {
-        const parsed = JSON.parse(jsonBlockMatch[1]);
-        if (parsed.threeC) threeC = parsed.threeC;
-      } catch (e) {
-        console.warn('[3C] Failed to parse 3C JSON block:', e.message);
+
+    // Use Cloudflare Workers AI for 3C Analysis to avoid Gemini Token limit / strictness
+    try {
+      if (globalEnv.AI) {
+        console.log(`[3C] Generating 3C Analysis using Cloudflare Workers AI...`);
+        const threeCMessages = [
+          {
+            role: "system",
+            content: "You are a structured business analyst. You MUST respond ONLY with valid JSON. Do not wrap in ```json, do not add any explanation."
+          },
+          {
+            role: "user",
+            content: `다음 종목에 대한 실시간 뉴스 요약과 시장 인사이트를 바탕으로,
+반드시 아래 JSON 구조에 맞추어 3C (Customer, Company, Competitor) 전략 분석 결과를 작성하라.
+어떤 추가 텍스트나 마크다운 코드블록(json 등) 없이 오직 JSON만 반환할 것.
+
+[종목명]: ${companyName}
+[분석 컨텍스트]:
+${rawInsight}
+
+[출력 JSON 구조]:
+{
+  "customer": {
+    "label": "Customer (고객·시장)",
+    "signal": "시장/고객 관련 핵심 1문장",
+    "bullets": ["상세 내용 1", "상세 내용 2", "상세 내용 3"]
+  },
+  "company": {
+    "label": "Company (자사·내부)",
+    "signal": "자사 동향 관련 핵심 1문장",
+    "bullets": ["상세 내용 1", "상세 내용 2", "상세 내용 3"]
+  },
+  "competitor": {
+    "label": "Competitor (경쟁사·구도)",
+    "signal": "경쟁사/업계 동향 핵심 1문장",
+    "bullets": ["상세 내용 1", "상세 내용 2", "상세 내용 3"]
+  }
+}`
+          }
+        ];
+
+        const cfAiResponse = await globalEnv.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+          messages: threeCMessages
+        });
+        
+        let rawThreeC = cfAiResponse.response || cfAiResponse;
+        rawThreeC = rawThreeC.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
+        
+        threeC = JSON.parse(rawThreeC);
+        console.log(`[3C] Successfully generated 3C analysis via CF AI.`);
+      } else {
+        console.warn(`[3C] Cloudflare AI binding not found, skipping 3C.`);
       }
-      // Strip the JSON block from the markdown insight so it doesn't render as code
-      rawInsight = rawInsight.replace(/```json[\s\S]*?```/g, '').trim();
+    } catch (e) {
+      console.error(`[3C] Failed to generate 3C analysis via CF AI:`, e.message);
+      threeC = {
+        customer: { label: "Customer", signal: "분석 실패", bullets: ["데이터 파싱 중 오류 발생"] },
+        company: { label: "Company", signal: "분석 실패", bullets: ["데이터 파싱 중 오류 발생"] },
+        competitor: { label: "Competitor", signal: "분석 실패", bullets: ["데이터 파싱 중 오류 발생"] }
+      };
     }
 
     // Return results
@@ -1048,6 +1058,32 @@ ${summaryBullets}
 ## 3. Investor Insights
 - **Short-term Risks**: ${dynamicRisk}
 - **Long-term Opportunities**: ${dynamicOpportunity}`,
-    sources: sources
+    sources: sources,
+    threeC: {
+      customer: {
+        label: "Customer (고객/시장)",
+        signal: "⚠️ 클라우드플레어 라우팅 문제로 AI 분석 임시 지연",
+        bullets: [
+          "현재 한국(SK Broadband 등)에서 접속 시 간헐적으로 홍콩 데이터센터(HKG)로 연결됩니다.",
+          "홍콩은 Gemini API 지원 지역이 아니기 때문에(Rate Limit 0) AI 엔진이 차단되었습니다.",
+          "새로고침을 여러 번 눌러 도쿄(NRT)나 서울(ICN) 데이터센터로 연결되면 정상 작동합니다."
+        ]
+      },
+      company: {
+        label: "Company (자사)",
+        signal: "일시적인 RSS 모드 가동 중",
+        bullets: [
+          "AI 분석을 우회하고 실시간 구글/네이버 뉴스 RSS 기반으로만 응답했습니다.",
+          "API Key는 정상적이나, 클라우드 워커 위치가 지원되지 않는 국가로 잡혔을 때 발생합니다."
+        ]
+      },
+      competitor: {
+        label: "Competitor (경쟁사)",
+        signal: "해당 사항 없음",
+        bullets: [
+          "AI 연결이 복구되면 정상적인 3C 전략 분석이 제공됩니다."
+        ]
+      }
+    }
   };
 }

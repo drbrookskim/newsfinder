@@ -31,8 +31,20 @@ export default {
       const companyName = url.searchParams.get('company');
       if (!companyName) return createResponse({ error: 'company parameter is required' }, 400);
       try {
-        const priceData = await fetchStockPrice(companyName);
-        return createResponse(priceData);
+        // 1) Try static dictionary first
+        let ticker = resolveTickerSymbol(companyName);
+        
+        // 2) If not found and looks Korean, try Naver search to find the code
+        if (!ticker) {
+          const naverCode = await fetchNaverTickerSearch(companyName);
+          if (naverCode) ticker = naverCode;
+        }
+        
+        if (!ticker) return createResponse({ found: false });
+        
+        const priceData = await fetchStockPrice(ticker);
+        if (!priceData) return createResponse({ found: false });
+        return createResponse({ found: true, ...priceData });
       } catch (e) {
         return createResponse({ error: 'Failed to fetch stock price' }, 500);
       }
@@ -313,6 +325,28 @@ function resolveTickerSymbol(name) {
     }
   }
   return null;
+}
+
+// ── Naver Finance: Auto-resolve Korean company name → stock code ───────────
+async function fetchNaverTickerSearch(companyName) {
+  try {
+    const encoded = encodeURIComponent(companyName);
+    const url = `https://ac.stock.naver.com/ac?query=${encoded}&target=stock,index,marketindicator`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    // items[0] is the best match list
+    const items = data?.items?.[0];
+    if (!items || items.length === 0) return null;
+    // Each item: [code, name, market, ...]
+    const best = items[0];
+    const code = best?.[0]; // 6-digit code e.g. '005930'
+    if (code && /^\d{6}$/.test(code)) return `${code}.KS`;
+    return null;
+  } catch (e) {
+    console.warn('[NaverTickerSearch]', e.message);
+    return null;
+  }
 }
 
 // ── Stock Price Orchestrator & KRX/NXT Logic ──────────────────────────────

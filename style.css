@@ -305,18 +305,19 @@ ul, ol {
 /* Dashboard Panel */
 .dashboard-title-band {
   border-bottom: 2px solid var(--c-ink);
-  margin-bottom: calc(var(--lh) * 2);
   padding-bottom: calc(var(--lh) - 2px);
 }
 .dashboard-title-band h2 {
   grid-column: 1 / 9;
   margin: 0;
   font-size: 40px;
+  word-break: keep-all;
 }
 .dashboard-title-band .company-meta {
   grid-column: 9 / 13;
   text-align: right;
-  line-height: calc(var(--lh) * 2);
+  align-self: end;
+  padding-bottom: 4px;
 }
 
 .news-source-col {

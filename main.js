@@ -422,11 +422,8 @@ function switchAnalysisTab(tabName) {
   tabPanels.forEach(panel => {
     const isActive = panel.id === `panel-${tabName}`;
     panel.classList.toggle('active', isActive);
-    if (isActive) {
-      panel.removeAttribute('hidden');
-    } else {
-      panel.setAttribute('hidden', '');
-    }
+    // Remove any inline display style — let CSS handle it
+    panel.style.display = '';
   });
 }
 

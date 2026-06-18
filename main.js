@@ -51,7 +51,7 @@ const trendingTags = document.querySelectorAll('.trending-tag-btn');
 
 // ── Real-time Stock Price Widget ──────────────────────────────────────────
 async function fetchAndDisplayStockPrice(companyName) {
-  const card = document.getElementById('stock-price-card');
+  const card = document.getElementById('inline-stock-price');
   if (!card) return;
   card.classList.add('loading');
   card.style.display = 'flex';
@@ -73,16 +73,10 @@ async function fetchAndDisplayStockPrice(companyName) {
     document.getElementById('stock-exchange').textContent = data.exchange || '';
     document.getElementById('stock-price').textContent = `${currency}${fmt(data.price)}`;
     
-    const priceLabel = document.getElementById('stock-price-label');
-    if (priceLabel) {
-      if (data.marketState === 'PRE') {
-        priceLabel.textContent = '전일 종가';
-      } else if (data.marketState === 'CLOSED' || data.marketState === 'POST') {
-        priceLabel.textContent = '당일 종가';
-      } else {
-        priceLabel.textContent = '현재 주가';
-      }
-    }
+    // Remove price label since we want it completely inline and minimalistic
+    // The previous text labels like "당일 종가" or "현재 주가" take up too much space next to the H2 name.
+    // If we wanted to keep them, we could, but let's just show the raw numbers as requested:
+    // "기업명 우측에 동일한 텍스트 크기에 상승이면 빨간색, 하락이 파란색으로 퍼센트와 함께 표시해줘"
     
     const changeEl = document.getElementById('stock-change');
     const sign = data.change >= 0 ? '▲' : '▼';
@@ -92,7 +86,8 @@ async function fetchAndDisplayStockPrice(companyName) {
     changeEl.textContent = `${sign} ${currency}${absChgStr} (${data.change >= 0 ? '+' : ''}${data.changePercent.toFixed(2)}%)`;
     changeEl.className = `stock-change ${data.change >= 0 ? 'positive' : 'negative'}`;
     
-    document.getElementById('stock-prev-close').textContent = `${currency}${fmt(data.previousClose)}`;
+    // We removed prev close in inline view
+    // document.getElementById('stock-prev-close').textContent = `${currency}${fmt(data.previousClose)}`;
     
     const stateEl = document.getElementById('stock-market-state');
     const stateMap = { REGULAR: '정규장', PRE: '장전', POST: '장후', CLOSED: '장마감', NXT: '연장' };

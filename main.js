@@ -69,9 +69,11 @@ async function fetchAndDisplayStockPrice(companyName) {
       ? Number(v).toLocaleString('ko-KR', { maximumFractionDigits: 0 })
       : Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     
-    document.getElementById('stock-ticker').textContent = data.ticker || '';
-    document.getElementById('stock-exchange').textContent = data.exchange || '';
-    document.getElementById('stock-price').textContent = `${currency}${fmt(data.price)}`;
+    const tickerEl = document.getElementById('stock-ticker');
+    if (tickerEl) tickerEl.textContent = data.ticker || '';
+    
+    const priceEl = document.getElementById('stock-price');
+    if (priceEl) priceEl.textContent = `${currency}${fmt(data.price)}`;
     
     // Remove price label since we want it completely inline and minimalistic
     // The previous text labels like "당일 종가" or "현재 주가" take up too much space next to the H2 name.
@@ -79,20 +81,24 @@ async function fetchAndDisplayStockPrice(companyName) {
     // "기업명 우측에 동일한 텍스트 크기에 상승이면 빨간색, 하락이 파란색으로 퍼센트와 함께 표시해줘"
     
     const changeEl = document.getElementById('stock-change');
-    const sign = data.change >= 0 ? '▲' : '▼';
-    const pct = Math.abs(data.changePercent).toFixed(2);
-    const absChg = Math.abs(data.change);
-    const absChgStr = isKRW ? absChg.toLocaleString('ko-KR', { maximumFractionDigits: 0 }) : absChg.toFixed(2);
-    changeEl.textContent = `${sign} ${currency}${absChgStr} (${data.change >= 0 ? '+' : ''}${data.changePercent.toFixed(2)}%)`;
-    changeEl.className = `stock-change ${data.change >= 0 ? 'positive' : 'negative'}`;
+    if (changeEl) {
+      const sign = data.change >= 0 ? '▲' : '▼';
+      const pct = Math.abs(data.changePercent).toFixed(2);
+      const absChg = Math.abs(data.change);
+      const absChgStr = isKRW ? absChg.toLocaleString('ko-KR', { maximumFractionDigits: 0 }) : absChg.toFixed(2);
+      changeEl.textContent = `${sign} ${currency}${absChgStr} (${data.change >= 0 ? '+' : ''}${data.changePercent.toFixed(2)}%)`;
+      changeEl.className = `stock-change ${data.change >= 0 ? 'positive' : 'negative'}`;
+    }
     
     // We removed prev close in inline view
     // document.getElementById('stock-prev-close').textContent = `${currency}${fmt(data.previousClose)}`;
     
     const stateEl = document.getElementById('stock-market-state');
-    const stateMap = { REGULAR: '정규장', PRE: '장전', POST: '장후', CLOSED: '장마감', NXT: '연장' };
-    stateEl.textContent = stateMap[data.marketState] || data.marketState || '';
-    stateEl.className = `market-state-badge ${data.marketState === 'REGULAR' || data.marketState === 'NXT' ? 'active' : ''}`;
+    if (stateEl) {
+      const stateMap = { REGULAR: '정규장', PRE: '장전', POST: '장후', CLOSED: '장마감', NXT: '연장' };
+      stateEl.textContent = stateMap[data.marketState] || data.marketState || '';
+      stateEl.className = `market-state-badge ${data.marketState === 'REGULAR' || data.marketState === 'NXT' ? 'active' : ''}`;
+    }
     
     const exchangeEl = document.getElementById('stock-exchange');
     if (exchangeEl) {

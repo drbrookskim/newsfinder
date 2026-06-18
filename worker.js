@@ -315,6 +315,14 @@ function resolveTickerSymbol(name) {
     '포스코': '005490.KS', 'posco': '005490.KS',
     'lg전자': '066570.KS', 'lg화학': '051910.KS',
     'kb금융': '105560.KS', '신한금융': '055550.KS', 'shinhan': '055550.KS',
+    
+    // Korean KOSDAQ stocks (.KQ suffix)
+    '오픈엣지테크놀로지': '394280.KQ',
+    '피에스케이': '319660.KQ',
+    '제주반도체': '080220.KQ',
+    '후성': '093370.KS',
+    '유니테스트': '086390.KQ',
+    '와이씨': '232140.KQ',
   };
   if (map[lower]) return map[lower];
   // Partial match: key must be 4+ chars and appear as a whole word in the query
@@ -330,18 +338,45 @@ function resolveTickerSymbol(name) {
 // ── Naver Finance: Auto-resolve Korean company name → stock code ───────────
 async function fetchNaverTickerSearch(companyName) {
   try {
-    const encoded = encodeURIComponent(companyName);
+    const encoded = encodeURIComponent(companyName.trim());
     const url = `https://ac.stock.naver.com/ac?query=${encoded}&target=stock,index,marketindicator`;
-    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!res.ok) return null;
-    const data = await res.json();
-    // items[0] is the best match list
-    const items = data?.items?.[0];
-    if (!items || items.length === 0) return null;
-    // Each item: [code, name, market, ...]
-    const best = items[0];
-    const code = best?.[0]; // 6-digit code e.g. '005930'
-    if (code && /^\d{6}$/.test(code)) return `${code}.KS`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Referer': 'https://finance.naver.com/',
+        'Accept': 'application/json'
+      }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      console.log(`[NaverTickerSearch] for "${companyName}":`, JSON.stringify(data).slice(0, 400));
+      // Naver AC response: { items: [ [stock_items], ... ] }
+      // Each stock item: [ code, name, type, typeName, url, reutersCode, sosok ]
+      // sosok: "0" = KOSPI (.KS), "1" = KOSDAQ (.KQ)
+      const stockItems = data?.items?.[0];
+      if (stockItems && stockItems.length > 0) {
+        const best = stockItems[0];
+        const code = best?.[0];
+        const sosok = best?.[6];
+        if (code && /^\d{6}$/.test(code)) {
+          const suffix = sosok === '1' ? '.KQ' : '.KS';
+          console.log(`[NaverTickerSearch] → ${code}${suffix}`);
+          return `${code}${suffix}`;
+        }
+      }
+    }
+    // Fallback: Naver Finance HTML search
+    const searchRes = await fetch(`https://finance.naver.com/search/searchList.nhn?query=${encoded}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html' }
+    });
+    if (searchRes.ok) {
+      const text = await searchRes.text();
+      const match = text.match(/code=(\d{6})/);
+      if (match) {
+        console.log(`[NaverTickerSearch] HTML fallback → ${match[1]}.KS`);
+        return `${match[1]}.KS`;
+      }
+    }
     return null;
   } catch (e) {
     console.warn('[NaverTickerSearch]', e.message);

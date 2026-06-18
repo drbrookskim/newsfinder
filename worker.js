@@ -315,8 +315,91 @@ function resolveTickerSymbol(name) {
   return null;
 }
 
-// ── Yahoo Finance Real-Time Price Fetcher ──────────────────────────────────
+// ── Stock Price Orchestrator & KRX/NXT Logic ──────────────────────────────
 async function fetchStockPrice(ticker) {
+  let data = null;
+  const isKorean = ticker.endsWith('.KS') || ticker.endsWith('.KQ') || /^\d{6}$/.test(ticker);
+
+  if (isKorean) {
+    // Korean Stocks: Try Naver first, fallback to Yahoo
+    data = await fetchNaverFinance(ticker);
+    if (!data) data = await fetchYahooFinance(ticker);
+    
+    if (data) {
+      // Calculate KST time (Worker is UTC)
+      const now = new Date();
+      const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+      const hours = kstTime.getUTCHours();
+      const minutes = kstTime.getUTCMinutes();
+      const timeStr = hours * 100 + minutes;
+
+      // Apply Time-based rules for Korea Exchange
+      if (timeStr < 900) {
+        data.marketState = 'PRE';
+        data.exchangeLabel = '';
+      } else if (timeStr >= 900 && timeStr < 1530) {
+        data.marketState = 'REGULAR';
+        data.exchangeLabel = 'KRX';
+      } else if (timeStr >= 1530 && timeStr < 2000) {
+        data.marketState = 'NXT';
+        data.exchangeLabel = 'NXT';
+      } else {
+        data.marketState = 'CLOSED';
+        data.exchangeLabel = '';
+      }
+    }
+  } else {
+    // US/Global Stocks: Try Yahoo
+    data = await fetchYahooFinance(ticker);
+    if (data) data.exchangeLabel = data.exchange;
+  }
+  
+  return data;
+}
+
+async function fetchNaverFinance(ticker) {
+  let code = ticker;
+  if (code.includes('.')) code = code.split('.')[0];
+  if (!/^\d{6}$/.test(code)) return null;
+
+  try {
+    const url = `https://m.stock.naver.com/api/stock/${code}/basic`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    
+    let currentPrice = parseFloat(data.closePrice.replace(/,/g, ''));
+    let previousCloseText = data.compareToPreviousClosePrice.replace(/,/g, '');
+    let previousClose = currentPrice;
+    
+    if (data.compareToPreviousPrice.name === 'RISING') {
+      previousClose = currentPrice - parseFloat(previousCloseText);
+    } else if (data.compareToPreviousPrice.name === 'FALLING') {
+      previousClose = currentPrice + parseFloat(previousCloseText);
+    }
+    
+    const change = currentPrice - previousClose;
+    const changePercent = parseFloat(data.fluctuationsRatio) || 0;
+    // For falling, fluctuationsRatio is positive in Naver API, so we adjust sign based on change
+    const signedChangePercent = change < 0 ? -Math.abs(changePercent) : Math.abs(changePercent);
+
+    return {
+      ticker: ticker,
+      exchange: data.stockExchangeName || 'KRX',
+      price: currentPrice,
+      previousClose: previousClose,
+      change: change,
+      changePercent: signedChangePercent,
+      currency: 'KRW',
+      marketState: data.marketStatus === 'CLOSE' ? 'CLOSED' : 'REGULAR'
+    };
+  } catch(e) {
+    console.warn(`[Naver Finance] ${ticker}:`, e.message);
+    return null;
+  }
+}
+
+async function fetchYahooFinance(ticker) {
   const urls = [
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
     `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`
@@ -325,21 +408,20 @@ async function fetchStockPrice(ticker) {
     try {
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Origin': 'https://finance.yahoo.com',
-          'Referer': 'https://finance.yahoo.com/'
+          'User-Agent': 'Mozilla/5.0',
+          'Accept': 'application/json'
         }
       });
       if (!response.ok) continue;
       const data = await response.json();
       const meta = data?.chart?.result?.[0]?.meta;
       if (!meta?.regularMarketPrice) continue;
+      
       const previousClose = meta.chartPreviousClose ?? meta.regularMarketPreviousClose ?? meta.previousClose ?? meta.regularMarketPrice;
       const currentPrice = meta.regularMarketPrice;
       const change = currentPrice - previousClose;
       const changePercent = previousClose ? (change / previousClose) * 100 : 0;
+      
       return {
         ticker: meta.symbol || ticker,
         exchange: meta.fullExchangeName || meta.exchangeName || '',

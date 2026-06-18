@@ -89,15 +89,24 @@
         </div>
       </div>
 
-      <!-- Real-time Stock Price Widget (Hidden fields needed by JS) -->
+      <!-- Real-time Stock Price Widget -->
       <div id="stock-price-card" style="display:none;">
-        <span id="stock-ticker"></span>
-        <span id="stock-market-state"></span>
-        <span id="stock-price-label"></span>
-        <span id="stock-price"></span>
-        <span id="stock-change"></span>
-        <span id="stock-exchange"></span>
-        <span id="stock-prev-close"></span>
+        <div class="stock-header">
+          <span id="stock-ticker"></span>
+          <span id="stock-exchange" class="exchange-badge"></span>
+          <span id="stock-market-state" class="market-state-badge"></span>
+        </div>
+        <div class="stock-body">
+          <div class="stock-price-main">
+            <span id="stock-price-label"></span>
+            <span id="stock-price"></span>
+            <span id="stock-change"></span>
+          </div>
+          <div class="stock-price-sub">
+            <span>이전 종가</span>
+            <span id="stock-prev-close"></span>
+          </div>
+        </div>
       </div>
 
       <!-- News Sources (Left Col) -->

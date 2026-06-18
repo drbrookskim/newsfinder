@@ -75,8 +75,10 @@ async function fetchAndDisplayStockPrice(companyName) {
     
     const priceLabel = document.getElementById('stock-price-label');
     if (priceLabel) {
-      if (data.marketState === 'CLOSED' || data.marketState === 'POST' || data.marketState === 'PRE') {
-        priceLabel.textContent = '장 마감 주가';
+      if (data.marketState === 'PRE') {
+        priceLabel.textContent = '전일 종가';
+      } else if (data.marketState === 'CLOSED' || data.marketState === 'POST') {
+        priceLabel.textContent = '당일 종가';
       } else {
         priceLabel.textContent = '현재 주가';
       }
@@ -93,9 +95,15 @@ async function fetchAndDisplayStockPrice(companyName) {
     document.getElementById('stock-prev-close').textContent = `${currency}${fmt(data.previousClose)}`;
     
     const stateEl = document.getElementById('stock-market-state');
-    const stateMap = { REGULAR: '정규장', PRE: '프리마켓', POST: '애프터마켓', CLOSED: '장마감' };
+    const stateMap = { REGULAR: '정규장', PRE: '장전', POST: '장후', CLOSED: '장마감', NXT: '연장' };
     stateEl.textContent = stateMap[data.marketState] || data.marketState || '';
-    stateEl.className = `market-state-badge ${data.marketState === 'REGULAR' ? 'active' : ''}`;
+    stateEl.className = `market-state-badge ${data.marketState === 'REGULAR' || data.marketState === 'NXT' ? 'active' : ''}`;
+    
+    const exchangeEl = document.getElementById('stock-exchange');
+    if (exchangeEl) {
+      exchangeEl.textContent = data.exchangeLabel || data.exchange || '';
+      exchangeEl.className = data.exchangeLabel ? 'exchange-badge' : '';
+    }
   } catch (e) {
     console.warn('[Stock Price] fetch failed:', e.message);
     if (card) card.style.display = 'none';

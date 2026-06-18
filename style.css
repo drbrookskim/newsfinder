@@ -458,6 +458,36 @@ ul, ol {
   margin-bottom: var(--bl);
 }
 
+/* Source Number Circle Badges */
+.inline-source-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.inline-source-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--c-ink);
+  color: var(--c-paper);
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.inline-source-badge:hover {
+  background: var(--c-accent);
+}
+
+
 @media (max-width: 768px) {
   h1 {
     font-size: 32px;
@@ -518,8 +548,7 @@ ul, ol {
   text-transform: uppercase;
 }
 
-.threec-card.threec-customer { border-top-color: var(--c-accent); }
-.threec-card.threec-customer .threec-card-header { color: var(--c-accent); }
+/* All 3C cards use the same neutral border/color – no accent on Customer */
 
 .threec-signal {
   font-size: 15px;

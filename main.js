@@ -560,7 +560,9 @@ function customMarkdownParser(markdown) {
   html = html.replace(/^\s*-\s+(.+)$/gm, '<li>$1</li>');
 
   // Group continuous <li> items into <ul>
-  html = html.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+  html = html.replace(/(?:^|\n)(<li>[\s\S]*?<\/li>(?:\s*\n?\s*<li>[\s\S]*?<\/li>)*)/g, (match, p1) => {
+    return `\n<ul>\n${p1}\n</ul>`;
+  });
   
   // Clean up nested <ul> that might get created by mistake in regex
   // (Simple grouping regex ensures they are placed neatly)

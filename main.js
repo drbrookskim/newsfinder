@@ -541,44 +541,91 @@ function updateImpactBadge(impact) {
 
 // Custom Markdown Compiler (Vanilla JS, Regex based)
 function customMarkdownParser(markdown) {
-  let html = markdown.trim();
+  const lines = markdown.trim().split('\n');
+  const output = [];
+  let listBuffer = [];
 
-  // Escape HTML entities to prevent XSS
-  html = html
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  function flushList() {
+    if (listBuffer.length === 0) return;
+    output.push('<ul>');
+    listBuffer.forEach(item => output.push(item));
+    output.push('</ul>');
+    listBuffer = [];
+  }
 
-  // Headings: ## Heading Title
-  html = html.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+  function applyInline(text) {
+    // Escape HTML
+    text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // Bold: **text**
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Italic: *text*
+    text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    return text;
+  }
 
-  // Headings: ### Small Title
-  html = html.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+  let paragraphBuffer = [];
 
-  // Bullet items: - **Title**: description or - list item
-  // Replace list items first
-  html = html.replace(/^\s*-\s+(.+)$/gm, '<li>$1</li>');
+  function flushParagraph() {
+    if (paragraphBuffer.length === 0) return;
+    const text = paragraphBuffer.join('<br>').trim();
+    if (text) output.push(`<p>${text}</p>`);
+    paragraphBuffer = [];
+  }
 
-  // Group continuous <li> items into <ul>
-  html = html.replace(/(?:^|\n)(<li>[\s\S]*?<\/li>(?:\s*\n?\s*<li>[\s\S]*?<\/li>)*)/g, (match, p1) => {
-    return `\n<ul>\n${p1}\n</ul>`;
-  });
-  
-  // Clean up nested <ul> that might get created by mistake in regex
-  // (Simple grouping regex ensures they are placed neatly)
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
 
-  // Bold tags: **bold text**
-  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-  // Handle line breaks inside paragraphs
-  html = html.split('\n\n').map(paragraph => {
-    if (paragraph.trim().startsWith('<h') || paragraph.trim().startsWith('<ul') || paragraph.trim().startsWith('<li')) {
-      return paragraph; // Keep structures intact
+    // Heading ##
+    const h2Match = line.match(/^##\s+(.+)$/);
+    if (h2Match) {
+      flushList();
+      flushParagraph();
+      output.push(`<h2>${applyInline(h2Match[1])}</h2>`);
+      continue;
     }
-    return `<p>${paragraph.replace(/\n/g, '<br>')}</p>`;
-  }).join('\n');
 
-  return html;
+    // Heading ###
+    const h3Match = line.match(/^###\s+(.+)$/);
+    if (h3Match) {
+      flushList();
+      flushParagraph();
+      output.push(`<h3>${applyInline(h3Match[1])}</h3>`);
+      continue;
+    }
+
+    // Heading #
+    const h1Match = line.match(/^#\s+(.+)$/);
+    if (h1Match) {
+      flushList();
+      flushParagraph();
+      output.push(`<h1>${applyInline(h1Match[1])}</h1>`);
+      continue;
+    }
+
+    // List item
+    const liMatch = line.match(/^\s*-\s+(.+)$/);
+    if (liMatch) {
+      flushParagraph();
+      listBuffer.push(`<li>${applyInline(liMatch[1])}</li>`);
+      continue;
+    }
+
+    // Empty line = paragraph break
+    if (line.trim() === '') {
+      flushList();
+      flushParagraph();
+      continue;
+    }
+
+    // Plain text → paragraph
+    flushList();
+    paragraphBuffer.push(applyInline(line));
+  }
+
+  flushList();
+  flushParagraph();
+
+  return output.join('\n');
 }
 
 // Render grounding news sources cards as inline badges next to heading

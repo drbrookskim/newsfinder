@@ -388,16 +388,16 @@ function renderResults(companyName, data) {
           month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'
         });
         html += `
-          <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="news-card" style="margin-bottom: 12px; padding: 12px; display: block; text-decoration: none;">
-            <h4 style="margin: 0 0 4px 0; font-size: 0.95rem; color: #fff;">${title}</h4>
-            <p style="margin: 0; font-size: 0.8rem; color: rgba(255,255,255,0.7); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${desc}</p>
-            <div style="margin-top: 6px; font-size: 0.75rem; color: rgba(255,255,255,0.4); text-align: right;">${pubDate}</div>
+          <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="naver-news-card">
+            <h4 class="naver-news-title">${title}</h4>
+            <p class="naver-news-desc">${desc}</p>
+            <div class="naver-news-date">${pubDate}</div>
           </a>
         `;
       });
       naverNewsSidebar.innerHTML = html;
     } else {
-      naverNewsSidebar.innerHTML = '<div class="news-empty-state" style="text-align:center; padding: 20px; color:rgba(255,255,255,0.5);">최신 뉴스 데이터를 불러올 수 없습니다.</div>';
+      naverNewsSidebar.innerHTML = '<p class="news-meta">최신 뉴스 데이터를 불러올 수 없습니다.</p>';
     }
   }
 

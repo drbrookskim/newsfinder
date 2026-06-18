@@ -425,3 +425,211 @@ ul, ol {
     line-height: calc(var(--lh) * 2);
   }
 }
+
+/* ==========================================================================
+   Tab Panel Switching
+   ========================================================================== */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.tab-btn {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-family);
+  color: var(--c-ink-light);
+  border-bottom: 2px solid transparent;
+  padding-bottom: 12px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn.active,
+.tab-btn[style*="font-weight:700"] {
+  color: var(--c-ink);
+  border-bottom-color: var(--c-accent);
+}
+.tab-btn:hover { color: var(--c-ink); }
+
+/* ==========================================================================
+   3C Strategy Analysis Cards
+   ========================================================================== */
+.threec-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--gutter);
+  margin-top: var(--lh);
+}
+
+.threec-card {
+  border-top: 3px solid var(--c-ink);
+  padding-top: calc(var(--lh) - 3px);
+}
+
+.threec-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: var(--lh);
+  color: var(--c-ink-light);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.threec-card.threec-customer { border-top-color: var(--c-accent); }
+.threec-card.threec-customer .threec-card-header { color: var(--c-accent); }
+
+.threec-signal {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin-bottom: calc(var(--bl) * 2);
+  color: var(--c-ink);
+}
+
+.threec-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.threec-bullets li {
+  font-size: 13px;
+  line-height: var(--lh);
+  padding-left: 14px;
+  position: relative;
+  color: var(--c-ink-light);
+  margin-bottom: 4px;
+}
+.threec-bullets li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--c-ink-light);
+}
+
+.threec-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: calc(var(--lh) * 3) 0;
+  color: var(--c-ink-light);
+  font-size: 14px;
+}
+
+/* ==========================================================================
+   Bottom Marquee Ticker
+   ========================================================================== */
+.marquee-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: var(--c-ink);
+  color: var(--c-paper);
+  display: flex;
+  align-items: center;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.marquee-label {
+  flex-shrink: 0;
+  padding: 0 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--c-accent);
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.marquee-viewport {
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.marquee-track {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  animation: marqueeScroll 40s linear infinite;
+  will-change: transform;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes marqueeScroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.marquee-tile {
+  flex-shrink: 0;
+  width: 280px;
+  padding: 0 20px;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  height: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.marquee-tile:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tile-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.tile-company {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.tile-time {
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
+  margin-left: auto;
+}
+
+.tile-summary {
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255,255,255,0.6);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+
+.badge-positive { background: #16a34a; color: #fff; }
+.badge-neutral  { background: #525252; color: #fff; }
+.badge-concern  { background: var(--c-accent); color: #fff; }
+
+/* Add bottom padding to the page body to account for the fixed marquee bar */
+body { padding-bottom: 56px; }

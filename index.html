@@ -15,15 +15,7 @@
 
   <div class="wrap">
     
-    <!-- GRID OVERLAY -->
-    <div class="guides">
-      <div class="guide-col"></div><div class="guide-col"></div>
-      <div class="guide-col"></div><div class="guide-col"></div>
-      <div class="guide-col"></div><div class="guide-col"></div>
-      <div class="guide-col"></div><div class="guide-col"></div>
-      <div class="guide-col"></div><div class="guide-col"></div>
-      <div class="guide-col"></div><div class="guide-col"></div>
-    </div>
+
 
     <!-- Header -->
     <header class="band header-band">
@@ -120,8 +112,8 @@
       <div class="insight-col">
         
         <div class="mb-lh" style="display:flex; gap:24px; border-bottom: 2px solid var(--c-ink); padding-bottom:16px;">
-          <button id="tab-ai" class="nav-btn" style="font-weight:700; text-decoration:none;" data-tab="ai">AI 뉴스 분석</button>
-          <button id="tab-3c" class="nav-btn" style="color:var(--c-ink-light); text-decoration:none;" data-tab="3c">3C 전략 분석</button>
+          <button id="tab-ai" class="tab-btn active" data-tab="ai">AI 뉴스 분석</button>
+          <button id="tab-3c" class="tab-btn" data-tab="3c">3C 전략 분석</button>
         </div>
 
         <div id="panel-ai" class="tab-panel active">
@@ -149,6 +141,16 @@
     </div>
 
   </div> <!-- /.wrap -->
+
+  <!-- Bottom Marquee Ticker -->
+  <div class="marquee-bar" id="marquee-bar">
+    <div class="marquee-label">RECENT</div>
+    <div class="marquee-viewport">
+      <div class="marquee-track" id="marquee-track">
+        <!-- Dynamically populated by JS -->
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="/main.js"></script>
 </body>

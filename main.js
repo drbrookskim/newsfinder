@@ -63,7 +63,7 @@ async function fetchAndDisplayStockPrice(companyName) {
     card.classList.remove('loading');
     if (!data.found || !data.price) { card.style.display = 'none'; return; }
     
-    const currency = data.currency === 'KRW' ? '₩' : (data.currency === 'EUR' ? '€' : '$');
+    const currency = data.currency === 'KRW' ? '' : (data.currency === 'EUR' ? '€' : '$');
     const isKRW = data.currency === 'KRW';
     const fmt = v => isKRW
       ? Number(v).toLocaleString('ko-KR', { maximumFractionDigits: 0 })

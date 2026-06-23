@@ -138,6 +138,24 @@ document.addEventListener('DOMContentLoaded', () => {
   loadMarqueeSummaries();
   setupEventListeners();
   companyInput.focus();
+
+  // URL ticker parameter processing for auto-search
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tickerParam = urlParams.get('ticker');
+    if (tickerParam) {
+      const query = decodeURIComponent(tickerParam).trim();
+      if (query) {
+        companyInput.value = query;
+        if (clearInputBtn) {
+          clearInputBtn.style.display = 'flex';
+        }
+        performAnalysis(query);
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to process URL ticker parameter:', e);
+  }
 });
 
 // --- Event Listeners Setup ---

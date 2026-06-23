@@ -211,6 +211,7 @@ ul, ol {
   background: var(--c-accent);
   color: var(--c-paper);
   border: none;
+  border-radius: 9999px;
   font-family: var(--font-family);
   font-size: 16px;
   font-weight: 600;

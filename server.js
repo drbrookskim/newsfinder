@@ -88,7 +88,24 @@ async function fetchSingleFeed(url) {
 
 // ── Ticker Symbol Resolver ─────────────────────────────────────────────────
 function resolveTickerSymbol(name) {
-  const lower = name.trim().toLowerCase();
+  const clean = name.trim();
+  
+  // 1. If explicit KRX format like 005930.KS or 035720.KQ
+  if (/^\d{6}\.(KS|KQ)$/i.test(clean)) {
+    return clean.toUpperCase();
+  }
+  
+  // 2. If 6-digit number, fallback to .KS (KRX)
+  if (/^\d{6}$/.test(clean)) {
+    return `${clean}.KS`;
+  }
+  
+  // 3. If 1-5 letters (English alphabet), treat directly as US stock ticker
+  if (/^[A-Za-z]{1,5}$/.test(clean)) {
+    return clean.toUpperCase();
+  }
+  
+  const lower = clean.toLowerCase();
   const map = {
     'abat': 'ABAT', 'abml': 'ABAT', 'american battery': 'ABAT', '아메리칸 배터리': 'ABAT',
     'tsla': 'TSLA', 'tesla': 'TSLA', '테슬라': 'TSLA',

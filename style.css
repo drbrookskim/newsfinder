@@ -160,6 +160,14 @@ ul, ol {
   font-size: 24px;
   font-weight: 700;
   line-height: var(--lh);
+  display: flex;
+  align-items: center;
+}
+
+.logo-img {
+  height: 20px;
+  width: auto;
+  display: block;
 }
 
 .brand-badge {

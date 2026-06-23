@@ -439,7 +439,6 @@ async function fetchNaverFinance(ticker) {
     
     let currentPrice = parseFloat(data.closePrice.replace(/,/g, ''));
     let previousCloseText = data.compareToPreviousClosePrice.replace(/,/g, '');
-    let previousClose = currentPrice;
     
     // data.compareToPreviousClosePrice and data.fluctuationsRatio are already signed strings
     let change = parseFloat(data.compareToPreviousClosePrice.replace(/,/g, ''));

@@ -335,6 +335,11 @@ async function performAnalysis(companyName) {
   } finally {
     submitBtn.disabled = false;
     companyInput.disabled = false;
+    companyInput.value = '';
+    companyInput.blur();
+    if (typeof clearInputBtn !== 'undefined' && clearInputBtn) {
+      clearInputBtn.style.display = 'none';
+    }
   }
 }
 

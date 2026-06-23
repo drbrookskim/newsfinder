@@ -441,24 +441,18 @@ async function fetchNaverFinance(ticker) {
     let previousCloseText = data.compareToPreviousClosePrice.replace(/,/g, '');
     let previousClose = currentPrice;
     
-    if (data.compareToPreviousPrice.name === 'RISING') {
-      previousClose = currentPrice - parseFloat(previousCloseText);
-    } else if (data.compareToPreviousPrice.name === 'FALLING') {
-      previousClose = currentPrice + parseFloat(previousCloseText);
-    }
+    // data.compareToPreviousClosePrice and data.fluctuationsRatio are already signed strings
+    let change = parseFloat(data.compareToPreviousClosePrice.replace(/,/g, ''));
+    let previousClose = currentPrice - change;
+    let changePercent = parseFloat(data.fluctuationsRatio) || 0;
     
-    const change = currentPrice - previousClose;
-    const changePercent = parseFloat(data.fluctuationsRatio) || 0;
-    // For falling, fluctuationsRatio is positive in Naver API, so we adjust sign based on change
-    const signedChangePercent = change < 0 ? -Math.abs(changePercent) : Math.abs(changePercent);
-
     return {
       ticker: ticker,
       exchange: data.stockExchangeName || 'KRX',
       price: currentPrice,
       previousClose: previousClose,
       change: change,
-      changePercent: signedChangePercent,
+      changePercent: changePercent,
       currency: 'KRW',
       marketState: data.marketStatus === 'CLOSE' ? 'CLOSED' : 'REGULAR'
     };

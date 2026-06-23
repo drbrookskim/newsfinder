@@ -95,9 +95,17 @@ async function fetchAndDisplayStockPrice(companyName) {
     
     const stateEl = document.getElementById('stock-market-state');
     if (stateEl) {
-      const stateMap = { REGULAR: '정규장', PRE: '장전', POST: '장후', CLOSED: '장마감', NXT: '연장' };
+      const stateMap = { 
+        REGULAR: '정규장', 
+        PRE: '장전', 
+        POST: '장후', 
+        CLOSED: '장마감', 
+        NXT: '연장',
+        AFTER_MARKET: '시간외',
+        AFTER_MARKET_CLOSED: '시간외마감'
+      };
       stateEl.textContent = stateMap[data.marketState] || data.marketState || '';
-      stateEl.className = `market-state-badge ${data.marketState === 'REGULAR' || data.marketState === 'NXT' ? 'active' : ''}`;
+      stateEl.className = `market-state-badge ${data.marketState === 'REGULAR' || data.marketState === 'NXT' || data.marketState === 'AFTER_MARKET' ? 'active' : ''}`;
     }
     
     const exchangeEl = document.getElementById('stock-exchange');

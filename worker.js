@@ -438,12 +438,22 @@ async function fetchNaverFinance(ticker) {
     const data = await res.json();
     
     let currentPrice = parseFloat(data.closePrice.replace(/,/g, ''));
-    let previousCloseText = data.compareToPreviousClosePrice.replace(/,/g, '');
-    
-    // data.compareToPreviousClosePrice and data.fluctuationsRatio are already signed strings
     let change = parseFloat(data.compareToPreviousClosePrice.replace(/,/g, ''));
     let previousClose = currentPrice - change;
     let changePercent = parseFloat(data.fluctuationsRatio) || 0;
+    let marketState = data.marketStatus === 'CLOSE' ? 'CLOSED' : 'REGULAR';
+    
+    // Use after-market price if available
+    if (data.overMarketPriceInfo && data.overMarketPriceInfo.overPrice) {
+      const overPrice = parseFloat(data.overMarketPriceInfo.overPrice.replace(/,/g, ''));
+      if (!isNaN(overPrice) && overPrice > 0) {
+        currentPrice = overPrice;
+        change = parseFloat(data.overMarketPriceInfo.compareToPreviousClosePrice.replace(/,/g, ''));
+        previousClose = currentPrice - change;
+        changePercent = parseFloat(data.overMarketPriceInfo.fluctuationsRatio) || 0;
+        marketState = data.overMarketPriceInfo.overMarketStatus === 'CLOSE' ? 'AFTER_MARKET_CLOSED' : 'AFTER_MARKET';
+      }
+    }
     
     return {
       ticker: ticker,
@@ -453,7 +463,7 @@ async function fetchNaverFinance(ticker) {
       change: change,
       changePercent: changePercent,
       currency: 'KRW',
-      marketState: data.marketStatus === 'CLOSE' ? 'CLOSED' : 'REGULAR'
+      marketState: marketState
     };
   } catch(e) {
     console.warn(`[Naver Finance] ${ticker}:`, e.message);

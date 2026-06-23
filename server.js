@@ -172,8 +172,125 @@ function resolveTickerSymbol(name) {
   return null;
 }
 
-// ── Yahoo Finance Real-Time Price Fetcher ──────────────────────────────────
+// ── Stock Price Orchestrator & KRX/NXT Logic ──────────────────────────────
+async function fetchNaverTickerSearch(companyName) {
+  try {
+    const url = `https://m.stock.naver.com/api/search/item?keyword=${encodeURIComponent(companyName)}&size=5`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const items = data?.result?.stock || [];
+    for (const item of items) {
+      if (item.nationCode === 'KOR' && item.repsztSecGroupCode === 'ST') {
+        const code = item.itemCode;
+        const market = item.stockExchangeName === 'KOSDAQ' ? '.KQ' : '.KS';
+        return `${code}${market}`;
+      }
+    }
+    return null;
+  } catch (e) {
+    console.warn('[NaverTickerSearch]', e.message);
+    return null;
+  }
+}
+
 async function fetchStockPrice(ticker) {
+  let data = null;
+  const isKorean = ticker.endsWith('.KS') || ticker.endsWith('.KQ') || /^\d{6}$/.test(ticker);
+
+  if (isKorean) {
+    // Korean Stocks: Try Naver first, fallback to Yahoo
+    data = await fetchNaverFinance(ticker);
+    if (!data) data = await fetchYahooFinance(ticker);
+    
+    if (data) {
+      // If Naver already gave us AFTER_MARKET info, keep it — don't override with time-based logic
+      if (data.marketState === 'AFTER_MARKET' || data.marketState === 'AFTER_MARKET_CLOSED') {
+        data.exchangeLabel = 'KRX';
+      } else {
+        // Calculate KST time (Worker is UTC)
+        const now = new Date();
+        const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+        const hours = kstTime.getUTCHours();
+        const minutes = kstTime.getUTCMinutes();
+        const timeStr = hours * 100 + minutes;
+
+        // Apply Time-based rules for Korea Exchange
+        if (timeStr < 900) {
+          data.marketState = 'PRE';
+          data.exchangeLabel = '';
+        } else if (timeStr >= 900 && timeStr < 1530) {
+          data.marketState = 'REGULAR';
+          data.exchangeLabel = 'KRX';
+        } else if (timeStr >= 1530 && timeStr < 2000) {
+          data.marketState = 'AFTER_MARKET';
+          data.exchangeLabel = 'KRX';
+        } else {
+          data.marketState = 'CLOSED';
+          data.exchangeLabel = 'KRX';
+        }
+      }
+    }
+  } else {
+    // US/Global Stocks: Try Yahoo
+    data = await fetchYahooFinance(ticker);
+    if (data) {
+      // Always set exchangeLabel so the badge renders
+      data.exchangeLabel = data.exchange || data.ticker || '';
+      // Normalize null/undefined marketState from Yahoo
+      if (!data.marketState) data.marketState = 'CLOSED';
+    }
+  }
+  
+  return data;
+}
+
+async function fetchNaverFinance(ticker) {
+  let code = ticker;
+  if (code.includes('.')) code = code.split('.')[0];
+  if (!/^\d{6}$/.test(code)) return null;
+
+  try {
+    const url = `https://m.stock.naver.com/api/stock/${code}/basic`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    
+    let currentPrice = parseFloat(data.closePrice.replace(/,/g, ''));
+    let change = parseFloat(data.compareToPreviousClosePrice.replace(/,/g, ''));
+    let previousClose = currentPrice - change;
+    let changePercent = parseFloat(data.fluctuationsRatio) || 0;
+    let marketState = data.marketStatus === 'CLOSE' ? 'CLOSED' : 'REGULAR';
+    
+    // Use after-market price if available
+    if (data.overMarketPriceInfo && data.overMarketPriceInfo.overPrice) {
+      const overPrice = parseFloat(data.overMarketPriceInfo.overPrice.replace(/,/g, ''));
+      if (!isNaN(overPrice) && overPrice > 0) {
+        currentPrice = overPrice;
+        change = parseFloat(data.overMarketPriceInfo.compareToPreviousClosePrice.replace(/,/g, ''));
+        previousClose = currentPrice - change;
+        changePercent = parseFloat(data.overMarketPriceInfo.fluctuationsRatio) || 0;
+        marketState = data.overMarketPriceInfo.overMarketStatus === 'CLOSE' ? 'AFTER_MARKET_CLOSED' : 'AFTER_MARKET';
+      }
+    }
+    
+    return {
+      ticker: ticker,
+      exchange: data.stockExchangeName || 'KRX',
+      price: currentPrice,
+      previousClose: previousClose,
+      change: change,
+      changePercent: changePercent,
+      currency: 'KRW',
+      marketState: marketState
+    };
+  } catch(e) {
+    console.warn(`[Naver Finance] ${ticker}:`, e.message);
+    return null;
+  }
+}
+
+async function fetchYahooFinance(ticker) {
   const urls = [
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
     `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`
@@ -182,21 +299,20 @@ async function fetchStockPrice(ticker) {
     try {
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Origin': 'https://finance.yahoo.com',
-          'Referer': 'https://finance.yahoo.com/'
+          'User-Agent': 'Mozilla/5.0',
+          'Accept': 'application/json'
         }
       });
       if (!response.ok) continue;
       const data = await response.json();
       const meta = data?.chart?.result?.[0]?.meta;
       if (!meta?.regularMarketPrice) continue;
+      
       const previousClose = meta.chartPreviousClose ?? meta.regularMarketPreviousClose ?? meta.previousClose ?? meta.regularMarketPrice;
       const currentPrice = meta.regularMarketPrice;
       const change = currentPrice - previousClose;
       const changePercent = previousClose ? (change / previousClose) * 100 : 0;
+      
       return {
         ticker: meta.symbol || ticker,
         exchange: meta.fullExchangeName || meta.exchangeName || '',
@@ -953,7 +1069,11 @@ ${summaryBullets}
 app.get('/api/stock-price', async (req, res) => {
   const company = (req.query.company || '').trim();
   if (!company) return res.status(400).json({ error: 'company parameter required' });
-  const ticker = resolveTickerSymbol(company);
+  let ticker = resolveTickerSymbol(company);
+  if (!ticker) {
+    const naverCode = await fetchNaverTickerSearch(company);
+    if (naverCode) ticker = naverCode;
+  }
   if (!ticker) return res.json({ found: false, company, ticker: null });
   console.log(`[Stock Price] Fetching ${ticker} for "${company}"...`);
   const priceData = await fetchStockPrice(ticker);

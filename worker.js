@@ -395,32 +395,42 @@ async function fetchStockPrice(ticker) {
     if (!data) data = await fetchYahooFinance(ticker);
     
     if (data) {
-      // Calculate KST time (Worker is UTC)
-      const now = new Date();
-      const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-      const hours = kstTime.getUTCHours();
-      const minutes = kstTime.getUTCMinutes();
-      const timeStr = hours * 100 + minutes;
-
-      // Apply Time-based rules for Korea Exchange
-      if (timeStr < 900) {
-        data.marketState = 'PRE';
-        data.exchangeLabel = '';
-      } else if (timeStr >= 900 && timeStr < 1530) {
-        data.marketState = 'REGULAR';
+      // If Naver already gave us AFTER_MARKET info, keep it — don't override with time-based logic
+      if (data.marketState === 'AFTER_MARKET' || data.marketState === 'AFTER_MARKET_CLOSED') {
         data.exchangeLabel = 'KRX';
-      } else if (timeStr >= 1530 && timeStr < 2000) {
-        data.marketState = 'NXT';
-        data.exchangeLabel = 'NXT';
       } else {
-        data.marketState = 'CLOSED';
-        data.exchangeLabel = '';
+        // Calculate KST time (Worker is UTC)
+        const now = new Date();
+        const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+        const hours = kstTime.getUTCHours();
+        const minutes = kstTime.getUTCMinutes();
+        const timeStr = hours * 100 + minutes;
+
+        // Apply Time-based rules for Korea Exchange
+        if (timeStr < 900) {
+          data.marketState = 'PRE';
+          data.exchangeLabel = '';
+        } else if (timeStr >= 900 && timeStr < 1530) {
+          data.marketState = 'REGULAR';
+          data.exchangeLabel = 'KRX';
+        } else if (timeStr >= 1530 && timeStr < 2000) {
+          data.marketState = 'AFTER_MARKET';
+          data.exchangeLabel = 'KRX';
+        } else {
+          data.marketState = 'CLOSED';
+          data.exchangeLabel = 'KRX';
+        }
       }
     }
   } else {
     // US/Global Stocks: Try Yahoo
     data = await fetchYahooFinance(ticker);
-    if (data) data.exchangeLabel = data.exchange;
+    if (data) {
+      // Always set exchangeLabel so the badge renders
+      data.exchangeLabel = data.exchange || data.ticker || '';
+      // Normalize null/undefined marketState from Yahoo
+      if (!data.marketState) data.marketState = 'CLOSED';
+    }
   }
   
   return data;

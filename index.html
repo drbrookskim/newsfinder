@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signnith News Finder</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <script type="module" crossorigin src="/newsfinder/assets/index-BWNCRJOu.js"></script>
+  <link rel="stylesheet" crossorigin href="/newsfinder/assets/index-CZkPxr0m.css">
+</head>
+<body>
+
+  <div class="wrap">
+    
+
+
+    <!-- Header -->
+    <header class="band header-band">
+      <div class="brand-name">
+        <img src="./logo.png" alt="Signnith" class="logo-img">
+        <span class="brand-badge">News Finder</span>
+      </div>
+      
+      <div class="nav-links">
+        <button id="history-toggle-btn" class="nav-btn">검색 이력</button>
+      </div>
+
+      <div class="status-indicator">
+        ON-DEMAND AI CONNECTED
+      </div>
+    </header>
+
+    <!-- History Drawer -->
+    <div class="band history-drawer" id="history-dropdown">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--lh);">
+        <h4 style="margin:0;">최근 분석 이력</h4>
+        <button id="clear-history" class="nav-btn text-red">모두 지우기</button>
+      </div>
+      <ul id="history-list" class="history-list">
+        <li class="history-empty">이력이 존재하지 않습니다</li>
+      </ul>
+    </div>
+
+    <!-- Search Form -->
+    <section class="band hero-band">
+      <h1 id="typing-title">
+        Fragments of News,<br>
+        Context through Action.
+      </h1>
+      
+      <form id="search-form" class="search-form" style="margin-top: calc(var(--lh)*2);">
+        <input type="text" id="company-input" class="search-input" placeholder="기업명 입력 (예: 삼성전자, NVIDIA)" required autocomplete="off">
+        <button type="submit" id="submit-btn" class="search-submit">AI 분석 시작</button>
+      </form>
+    </section>
+
+    <!-- Panels -->
+    <!-- 1. Idle Panel -->
+    <div id="idle-panel" class="band workspace-panel active">
+      <div class="feature-block feature-col-1">
+        <h4>01 실시간 구글 검색 접지</h4>
+        <p class="mt-lh">검색 결과 기반의 실시간 팩트만을 참조하는 Grounding 기술을 통해 비즈니스 정보 왜곡 및 환각을 차단합니다.</p>
+      </div>
+      <div class="feature-block feature-col-2">
+        <h4>02 시장 영향 신속 진단</h4>
+        <p class="mt-lh">보도 뉴스의 함의를 종합 진단하여 긍정적, 중립적, 혹은 우려됨 단계의 직관적 지표를 제공합니다.</p>
+      </div>
+      <div class="feature-block feature-col-3">
+        <h4>03 입체적 투자 리포트</h4>
+        <p class="mt-lh">핵심 뉴스 요약부터 단기 변동성 리스크, 장기 성장 동력까지 고가독성 마크다운으로 렌더링합니다.</p>
+      </div>
+    </div>
+
+    <!-- 2. Loading Panel -->
+    <div id="loading-panel" class="band workspace-panel">
+      <div class="loading-message">
+        <h2 id="loading-title">분석을 준비하고 있습니다...</h2>
+        <p id="loading-desc" style="font-size:24px; font-weight:400; color:var(--c-ink-light);">서버와 통신하여 실시간 검색 단계를 초기화 중입니다.</p>
+      </div>
+    </div>
+
+    <!-- 3. Results Panel -->
+    <div id="results-panel" class="band workspace-panel">
+      
+      <div class="dashboard-title-band band" style="margin-bottom: calc(var(--lh)*2);">
+        <h2 style="display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 0;">
+          <span id="result-company-name">기업명</span>
+          <span id="inline-stock-price" style="display:none; align-items: baseline; gap: 12px;">
+            <span id="stock-price" style="font-weight: 700;"></span>
+            <span id="stock-change" style="font-weight: 600;"></span>
+            <span style="display: flex; gap: 4px; align-items: center; transform: translateY(-6px);">
+              <span id="stock-exchange" class="exchange-badge"></span>
+              <span id="stock-market-state" class="market-state-badge"></span>
+            </span>
+          </span>
+        </h2>
+        <div class="company-meta" style="margin-top: 8px;">
+          <span id="market-impact-badge" class="three-c-label">시장 영향: 분석중</span>
+          <span id="sector-leader-badge" class="sector-leader-badge" style="display:none;"></span>
+        </div>
+      </div>
+
+      <!-- Market Intelligence Band (Investor Flow + Key Metrics) -->
+      <div id="market-intel-band" class="market-intel-band" style="display:none;">
+        <!-- Investor Flow (수급) -->
+        <div class="intel-block intel-investor">
+          <div class="intel-block-title">투자자 수급 현황</div>
+          <div class="investor-flow-grid">
+            <div class="flow-row">
+              <span class="flow-label">개인</span>
+              <span id="flow-individual" class="flow-value">—</span>
+            </div>
+            <div class="flow-row">
+              <span class="flow-label">기관</span>
+              <span id="flow-institution" class="flow-value">—</span>
+            </div>
+            <div class="flow-row">
+              <span class="flow-label">외국인</span>
+              <span id="flow-foreigner" class="flow-value">—</span>
+            </div>
+            <div class="flow-date" id="flow-date"></div>
+          </div>
+        </div>
+        <!-- Key Metrics -->
+        <div class="intel-block intel-metrics">
+          <div class="intel-block-title">주요 지표</div>
+          <div id="key-metrics-grid" class="key-metrics-grid"></div>
+        </div>
+        <!-- Analyst Consensus -->
+        <div class="intel-block intel-consensus">
+          <div class="intel-block-title">전문가 컨센서스</div>
+          <div id="consensus-content"></div>
+        </div>
+        <!-- Recent Research Reports -->
+        <div class="intel-block intel-reports" id="intel-reports-block">
+          <div class="intel-block-title">최근 리서치</div>
+          <div id="research-reports"></div>
+        </div>
+      </div>
+
+      <!-- Sector Peers Band -->
+      <div id="sector-peers-band" class="sector-peers-band" style="display:none;">
+        <div class="intel-block-title" style="margin-bottom:12px;">동일 업종 비교</div>
+        <div id="sector-peers-grid" class="sector-peers-grid"></div>
+      </div>
+
+      <!-- News Sources (Left Col) -->
+      <div class="news-source-col">
+        <h3 class="mb-lh border-bottom">실시간 속보 출처</h3>
+        <div id="naver-news-sidebar">
+          <p class="news-meta">속보를 불러오는 중...</p>
+        </div>
+      </div>
+
+      <!-- AI Analysis (Right Col) -->
+      <div class="insight-col">
+        
+        <div class="mb-lh" style="display:flex; gap:24px; border-bottom: 2px solid var(--c-ink); padding-bottom:16px;">
+          <button id="tab-ai" class="tab-btn active" data-tab="ai">AI 뉴스 분석</button>
+          <button id="tab-3c" class="tab-btn" data-tab="3c">3C 전략 분석</button>
+        </div>
+
+        <div id="panel-ai" class="tab-panel active">
+          <div class="markdown-body" id="insight-markdown">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <div id="panel-3c" class="tab-panel">
+          <div id="threec-container">
+            <p>분석 결과를 기다리는 중...</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 4. Error Panel -->
+    <div id="error-panel" class="band workspace-panel">
+      <div class="error-message">
+        <h2 id="error-title">분석에 실패하였습니다</h2>
+        <p id="error-desc">일시적인 네트워크 장애나 설정 오류로 요청을 수행하지 못했습니다.</p>
+        <button id="retry-btn" class="search-submit" style="margin-top:24px;">다시 시도하기</button>
+      </div>
+    </div>
+
+  </div> <!-- /.wrap -->
+
+  <!-- Bottom Marquee Ticker -->
+  <div class="marquee-bar" id="marquee-bar">
+    <div class="marquee-label">RECENT</div>
+    <div class="marquee-viewport">
+      <div class="marquee-track" id="marquee-track">
+        <!-- Dynamically populated by JS -->
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

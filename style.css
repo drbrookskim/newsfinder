@@ -611,7 +611,8 @@ ul, ol {
 
   /* ── 3C Cards ── */
   .threec-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
+    gap: var(--lh);
   }
 
   /* ── Inline Stock Widget ── */
@@ -623,8 +624,19 @@ ul, ol {
 
   /* ── Loading ── */
   .loading-message {
-    font-size: 24px;
-    padding: var(--lh) 0;
+    font-size: 22px;
+    margin: var(--lh) 0;
+    padding: 0;
+  }
+
+  /* Override inline style on #loading-desc */
+  #loading-desc {
+    font-size: 15px !important;
+    line-height: 1.55;
+  }
+
+  .loading-message h2 {
+    font-size: 20px;
   }
 
   /* ── History drawer ── */

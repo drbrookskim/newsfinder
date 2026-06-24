@@ -1115,7 +1115,7 @@ body { padding-bottom: 56px; }
   margin-bottom: 4px;
 }
 .peer-ticker {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--c-ink);
 }
@@ -1136,7 +1136,7 @@ body { padding-bottom: 56px; }
   align-items: center;
 }
 .peer-rank {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--c-ink-light);
   opacity: 0.8;
 }
@@ -1146,7 +1146,7 @@ body { padding-bottom: 56px; }
   opacity: 1;
 }
 .peer-leader-label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   padding: 1px 4px;
   background: var(--c-ink);
@@ -1158,7 +1158,7 @@ body { padding-bottom: 56px; }
   background: var(--c-accent);
 }
 .peer-change {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }

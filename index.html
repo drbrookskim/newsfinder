@@ -99,7 +99,52 @@
         </h2>
         <div class="company-meta" style="margin-top: 8px;">
           <span id="market-impact-badge" class="three-c-label">시장 영향: 분석중</span>
+          <span id="sector-leader-badge" class="sector-leader-badge" style="display:none;"></span>
         </div>
+      </div>
+
+      <!-- Market Intelligence Band (Investor Flow + Key Metrics) -->
+      <div id="market-intel-band" class="market-intel-band" style="display:none;">
+        <!-- Investor Flow (수급) -->
+        <div class="intel-block intel-investor">
+          <div class="intel-block-title">투자자 수급 현황</div>
+          <div class="investor-flow-grid">
+            <div class="flow-row">
+              <span class="flow-label">개인</span>
+              <span id="flow-individual" class="flow-value">—</span>
+            </div>
+            <div class="flow-row">
+              <span class="flow-label">기관</span>
+              <span id="flow-institution" class="flow-value">—</span>
+            </div>
+            <div class="flow-row">
+              <span class="flow-label">외국인</span>
+              <span id="flow-foreigner" class="flow-value">—</span>
+            </div>
+            <div class="flow-date" id="flow-date"></div>
+          </div>
+        </div>
+        <!-- Key Metrics -->
+        <div class="intel-block intel-metrics">
+          <div class="intel-block-title">주요 지표</div>
+          <div id="key-metrics-grid" class="key-metrics-grid"></div>
+        </div>
+        <!-- Analyst Consensus -->
+        <div class="intel-block intel-consensus">
+          <div class="intel-block-title">전문가 컨센서스</div>
+          <div id="consensus-content"></div>
+        </div>
+        <!-- Recent Research Reports -->
+        <div class="intel-block intel-reports" id="intel-reports-block">
+          <div class="intel-block-title">최근 리서치</div>
+          <div id="research-reports"></div>
+        </div>
+      </div>
+
+      <!-- Sector Peers Band -->
+      <div id="sector-peers-band" class="sector-peers-band" style="display:none;">
+        <div class="intel-block-title" style="margin-bottom:12px;">동일 업종 비교</div>
+        <div id="sector-peers-grid" class="sector-peers-grid"></div>
       </div>
 
       <!-- News Sources (Left Col) -->

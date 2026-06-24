@@ -923,3 +923,233 @@ ul, ol {
 
 /* Add bottom padding to the page body to account for the fixed marquee bar */
 body { padding-bottom: 56px; }
+
+/* ==========================================================================
+   Market Intelligence Panel
+   ========================================================================== */
+
+.sector-leader-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--c-accent);
+  color: #fff;
+  border-radius: 3px;
+}
+
+.market-intel-band {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--gutter);
+  padding: calc(var(--lh) * 1) 0;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  margin-bottom: calc(var(--lh) * 1.5);
+}
+
+.intel-block {
+  padding: 0 var(--gutter) 0 0;
+  border-right: 1px solid rgba(0,0,0,0.06);
+}
+.intel-block:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+
+.intel-block-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-light);
+  margin-bottom: 10px;
+}
+
+/* Investor Flow */
+.investor-flow-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.flow-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+.flow-label {
+  color: var(--c-ink-light);
+  font-size: 13px;
+}
+.flow-value {
+  font-weight: 700;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.flow-value.buy  { color: #ef4444; }
+.flow-value.sell { color: #3b82f6; }
+.flow-value.zero { color: var(--c-ink-light); }
+.flow-date {
+  font-size: 11px;
+  color: var(--c-ink-light);
+  opacity: 0.6;
+  margin-top: 6px;
+}
+
+/* Key Metrics */
+.key-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+}
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.metric-label {
+  font-size: 11px;
+  color: var(--c-ink-light);
+}
+.metric-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-ink);
+}
+
+/* Analyst Consensus */
+.consensus-score {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.consensus-label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.consensus-label.buy { color: #ef4444; }
+.consensus-label.neutral { color: #f59e0b; }
+.consensus-label.sell { color: #3b82f6; }
+.consensus-target {
+  font-size: 12px;
+  color: var(--c-ink-light);
+}
+.consensus-target strong {
+  color: var(--c-ink);
+  font-size: 14px;
+}
+
+/* Research Reports */
+.research-item {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.research-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+.research-firm {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--c-accent);
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+.research-title {
+  font-size: 12px;
+  color: var(--c-ink);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Sector Peers Band */
+.sector-peers-band {
+  grid-column: 1 / -1;
+  margin-bottom: calc(var(--lh) * 1.5);
+}
+.sector-peers-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--gutter);
+}
+.peer-card {
+  padding: 12px 0;
+  border-top: 2px solid var(--c-ink);
+}
+.peer-card.is-current {
+  border-top-color: var(--c-accent);
+}
+.peer-name {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 2px;
+  color: var(--c-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.peer-card.is-current .peer-name {
+  color: var(--c-accent);
+}
+.peer-change {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.peer-change.up { color: #ef4444; }
+.peer-change.down { color: #3b82f6; }
+.peer-rank {
+  font-size: 10px;
+  color: var(--c-ink-light);
+  margin-top: 2px;
+}
+.peer-card.is-current .peer-rank {
+  color: var(--c-accent);
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Responsive: Market Intelligence (mobile)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .market-intel-band {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .intel-block {
+    border-right: none;
+    padding-right: 0;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    padding-bottom: 16px;
+  }
+  .intel-block:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  .sector-peers-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .market-intel-band {
+    grid-template-columns: 1fr;
+  }
+  .sector-peers-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

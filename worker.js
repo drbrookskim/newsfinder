@@ -42,9 +42,16 @@ export default {
         
         if (!ticker) return createResponse({ found: false });
         
-        const priceData = await fetchStockPrice(ticker);
+        const isKorean = ticker.endsWith('.KS') || ticker.endsWith('.KQ') || /^\d{6}$/.test(ticker);
+        
+        // Fetch price data and market intelligence in parallel
+        const [priceData, marketIntel] = await Promise.all([
+          fetchStockPrice(ticker),
+          isKorean ? fetchNaverIntegration(ticker) : fetchYahooSectorInfo(ticker)
+        ]);
+        
         if (!priceData) return createResponse({ found: false });
-        return createResponse({ found: true, ...priceData });
+        return createResponse({ found: true, ...priceData, marketIntel: marketIntel || null });
       } catch (e) {
         return createResponse({ error: 'Failed to fetch stock price' }, 500);
       }
@@ -496,6 +503,150 @@ async function fetchNaverFinance(ticker) {
     console.warn(`[Naver Finance] ${ticker}:`, e.message);
     return null;
   }
+}
+
+// ── Naver Finance Integration API (수급, 업종비교, 컨센서스) ───────────────────
+async function fetchNaverIntegration(ticker) {
+  let code = ticker;
+  if (code.includes('.')) code = code.split('.')[0];
+  if (!/^\d{6}$/.test(code)) return null;
+
+  try {
+    const url = `https://m.stock.naver.com/api/stock/${code}/integration`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://m.stock.naver.com/'
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+
+    // Extract investor flow (dealTrendInfos) - most recent trading day
+    let investorFlow = null;
+    if (data.dealTrendInfos && data.dealTrendInfos.length > 0) {
+      const latest = data.dealTrendInfos[0];
+      investorFlow = {
+        date: latest.bizdate,
+        foreigner: latest.foreignerPureBuyQuant,
+        institution: latest.organPureBuyQuant,
+        individual: latest.individualPureBuyQuant,
+        foreignerRatio: latest.foreignerHoldRatio,
+        volume: latest.accumulatedTradingVolume
+      };
+    }
+
+    // Extract sector/industry comparison (industryCompareInfo)
+    let sectorInfo = null;
+    if (data.industryCompareInfo && data.industryCompareInfo.length > 0) {
+      // Find the searched stock in the list (or assume it's the top stock)
+      const peers = data.industryCompareInfo;
+      // Sort by marketValue to find rank
+      const sorted = [...peers].sort((a, b) => 
+        (parseFloat(b.marketValue) || 0) - (parseFloat(a.marketValue) || 0)
+      );
+      sectorInfo = {
+        industryCode: data.industryCode,
+        peers: peers.slice(0, 5).map(p => ({
+          code: p.itemCode,
+          name: p.stockName,
+          marketValue: p.marketValue,
+          changePercent: p.fluctuationsRatio,
+          changeDir: p.compareToPreviousPrice?.text || ''
+        }))
+      };
+    }
+
+    // Extract analyst consensus
+    let consensus = null;
+    if (data.consensusInfo) {
+      const c = data.consensusInfo;
+      const mean = parseFloat(c.recommMean);
+      let recommLabel = '의견없음';
+      if (mean >= 4.5) recommLabel = '강력매수';
+      else if (mean >= 3.5) recommLabel = '매수';
+      else if (mean >= 2.5) recommLabel = '중립';
+      else if (mean >= 1.5) recommLabel = '매도';
+      else if (mean > 0) recommLabel = '강력매도';
+      consensus = {
+        recommMean: c.recommMean,
+        recommLabel,
+        targetPrice: c.priceTargetMean
+      };
+    }
+
+    // Extract recent research reports
+    let researches = null;
+    if (data.researches && data.researches.length > 0) {
+      researches = data.researches.slice(0, 3).map(r => ({
+        firm: r.bnm,
+        title: r.tit,
+        date: r.wdt
+      }));
+    }
+
+    // Key indicators (marketCap, PER, foreignRate, etc.)
+    let keyIndicators = null;
+    if (data.keyIndicators && data.keyIndicators.length > 0) {
+      const indicatorMap = {};
+      data.keyIndicators.forEach(ki => {
+        indicatorMap[ki.code] = ki.value;
+      });
+      keyIndicators = {
+        marketCap: indicatorMap['marketValue'] || null,
+        per: indicatorMap['per'] || null,
+        pbr: indicatorMap['pbr'] || null,
+        foreignRate: indicatorMap['foreignRate'] || null,
+        high52: indicatorMap['highPriceOf52Weeks'] || null,
+        low52: indicatorMap['lowPriceOf52Weeks'] || null,
+        dividendYield: indicatorMap['dividendYieldRatio'] || null
+      };
+    }
+
+    return { investorFlow, sectorInfo, consensus, researches, keyIndicators, type: 'KRX' };
+  } catch(e) {
+    console.warn('[NaverIntegration]', e.message);
+    return null;
+  }
+}
+
+// ── Yahoo Finance Sector Info (US stocks) ──────────────────────────────────
+async function fetchYahooSectorInfo(ticker) {
+  // The chart API meta object contains sector/industry for US stocks
+  // We already call fetchYahooFinance which hits the chart API — reuse that
+  // but extract the sector fields from meta
+  const urls = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`
+  ];
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
+      });
+      if (!response.ok) continue;
+      const data = await response.json();
+      const meta = data?.chart?.result?.[0]?.meta;
+      if (!meta) continue;
+
+      return {
+        type: 'US',
+        exchange: meta.fullExchangeName || meta.exchangeName || '',
+        currency: meta.currency || 'USD',
+        longName: meta.longName || meta.shortName || ticker,
+        // Yahoo chart meta does not expose sector — return minimal info
+        marketCap: null,
+        sector: null,
+        industry: null,
+        volume: meta.regularMarketVolume || null,
+        high52: meta.fiftyTwoWeekHigh || null,
+        low52: meta.fiftyTwoWeekLow || null
+      };
+    } catch(e) {
+      console.error('[YahooSector]', ticker, e.message);
+    }
+  }
+  return null;
 }
 
 async function fetchYahooFinance(ticker) {

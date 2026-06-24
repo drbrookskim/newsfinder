@@ -113,6 +113,11 @@ async function fetchAndDisplayStockPrice(companyName) {
       exchangeEl.textContent = data.exchangeLabel || data.exchange || '';
       exchangeEl.className = data.exchangeLabel ? 'exchange-badge' : '';
     }
+
+    // Render Market Intelligence panel if data available
+    if (data.marketIntel) {
+      renderMarketIntelligence(data.marketIntel, data.price, data.currency);
+    }
   } catch (e) {
     console.warn('[Stock Price] fetch failed:', e.message);
     if (card) card.style.display = 'none';
@@ -399,6 +404,9 @@ function renderResults(companyName, data) {
   // Update header metadata
   resultCompanyName.textContent = companyName;
 
+  // Reset market intelligence panel from previous search
+  resetMarketIntelPanel();
+
   // Process and detect market impact from the insight content
   const insightText = data.insight || '';
   const impact = detectMarketImpact(insightText);
@@ -418,6 +426,7 @@ function renderResults(companyName, data) {
 
   // Render Naver News Sidebar
   const naverNewsSidebar = document.getElementById('naver-news-sidebar');
+
   if (naverNewsSidebar) {
     if (data.naverNewsItems && data.naverNewsItems.length > 0) {
       let html = '';
@@ -522,9 +531,191 @@ function render3CAnalysis(threeC) {
   container.innerHTML = html;
 }
 
+// ── Market Intelligence Panel ─────────────────────────────────────────────
+
+function resetMarketIntelPanel() {
+  const band = document.getElementById('market-intel-band');
+  const peersBand = document.getElementById('sector-peers-band');
+  const sectorBadge = document.getElementById('sector-leader-badge');
+  if (band) band.style.display = 'none';
+  if (peersBand) peersBand.style.display = 'none';
+  if (sectorBadge) { sectorBadge.style.display = 'none'; sectorBadge.textContent = ''; }
+  // Reset flow values
+  ['flow-individual', 'flow-institution', 'flow-foreigner'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = '—'; el.className = 'flow-value'; }
+  });
+  const dateEl = document.getElementById('flow-date');
+  if (dateEl) dateEl.textContent = '';
+  const metricsGrid = document.getElementById('key-metrics-grid');
+  if (metricsGrid) metricsGrid.innerHTML = '';
+  const consensusEl = document.getElementById('consensus-content');
+  if (consensusEl) consensusEl.innerHTML = '';
+  const reportsEl = document.getElementById('research-reports');
+  if (reportsEl) reportsEl.innerHTML = '';
+  const reportsBlock = document.getElementById('intel-reports-block');
+  if (reportsBlock) reportsBlock.style.display = '';
+  // Re-show all intel blocks
+  const investorBlock = document.querySelector('.intel-investor');
+  if (investorBlock) investorBlock.style.display = '';
+  const consensusBlock = document.querySelector('.intel-consensus');
+  if (consensusBlock) consensusBlock.style.display = '';
+  const peersGrid = document.getElementById('sector-peers-grid');
+  if (peersGrid) peersGrid.innerHTML = '';
+}
+
+function renderMarketIntelligence(intel, currentPrice, currency) {
+  if (!intel) return;
+  const band = document.getElementById('market-intel-band');
+  const peersBand = document.getElementById('sector-peers-band');
+
+  if (intel.type === 'KRX') {
+    // 1. Investor Flow (수급)
+    if (intel.investorFlow) {
+      const flow = intel.investorFlow;
+      const parseFlow = v => {
+        if (!v) return 0;
+        return parseFloat(String(v).replace(/[,+]/g, ''));
+      };
+      const setFlow = (id, raw) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const val = parseFlow(raw);
+        const formatted = Math.abs(val).toLocaleString('ko-KR', { maximumFractionDigits: 0 });
+        const sign = val > 0 ? '▲ +' : val < 0 ? '▼ ' : '';
+        el.textContent = val === 0 ? '—' : `${sign}${formatted}주`;
+        el.className = `flow-value ${val > 0 ? 'buy' : val < 0 ? 'sell' : 'zero'}`;
+      };
+      setFlow('flow-individual', flow.individual);
+      setFlow('flow-institution', flow.institution);
+      setFlow('flow-foreigner', flow.foreigner);
+      const dateEl = document.getElementById('flow-date');
+      if (dateEl && flow.date) {
+        const d = String(flow.date);
+        dateEl.textContent = `${d.slice(0,4)}.${d.slice(4,6)}.${d.slice(6,8)} 기준`;
+      }
+    }
+
+    // 2. Key Metrics
+    const metricsGrid = document.getElementById('key-metrics-grid');
+    if (metricsGrid && intel.keyIndicators) {
+      const ki = intel.keyIndicators;
+      const metrics = [
+        { label: '시가총액', value: ki.marketCap },
+        { label: 'PER', value: ki.per },
+        { label: 'PBR', value: ki.pbr },
+        { label: '외인보유율', value: ki.foreignRate },
+        { label: '52주최고', value: ki.high52 ? Number(String(ki.high52).replace(/,/g,'')).toLocaleString('ko-KR') : null },
+        { label: '52주최저', value: ki.low52 ? Number(String(ki.low52).replace(/,/g,'')).toLocaleString('ko-KR') : null },
+      ].filter(m => m.value);
+      metricsGrid.innerHTML = metrics.map(m =>
+        `<div class="metric-item"><span class="metric-label">${m.label}</span><span class="metric-value">${m.value}</span></div>`
+      ).join('');
+    }
+
+    // 3. Analyst Consensus
+    const consensusEl = document.getElementById('consensus-content');
+    if (consensusEl) {
+      if (intel.consensus) {
+        const c = intel.consensus;
+        const mean = parseFloat(c.recommMean) || 0;
+        const labelClass = mean >= 3.5 ? 'buy' : mean >= 2.5 ? 'neutral' : 'sell';
+        const targetNum = c.targetPrice ? Number(String(c.targetPrice).replace(/,/g,'')) : null;
+        const targetFmt = targetNum ? targetNum.toLocaleString('ko-KR', { maximumFractionDigits: 0 }) : null;
+        let upside = '';
+        if (targetNum && currentPrice) {
+          const pct = ((targetNum - currentPrice) / currentPrice * 100).toFixed(1);
+          upside = ` <span style="color:${pct > 0 ? '#ef4444' : '#3b82f6'}">(${pct > 0 ? '+' : ''}${pct}%)</span>`;
+        }
+        consensusEl.innerHTML = `
+          <div class="consensus-score">${mean.toFixed(1)}<span style="font-size:16px;color:var(--c-ink-light)">/5</span></div>
+          <div class="consensus-label ${labelClass}">${c.recommLabel}</div>
+          ${targetFmt ? `<div class="consensus-target">목표주가 <strong>${targetFmt}원</strong>${upside}</div>` : ''}
+        `;
+      } else {
+        consensusEl.innerHTML = '<p style="font-size:13px;color:var(--c-ink-light)">데이터 없음</p>';
+      }
+    }
+
+    // 4. Research Reports
+    const reportsEl = document.getElementById('research-reports');
+    if (reportsEl) {
+      if (intel.researches && intel.researches.length > 0) {
+        reportsEl.innerHTML = intel.researches.map(r => {
+          const d = String(r.date || '');
+          const dateStr = d.length === 8 ? `${d.slice(0,4)}.${d.slice(4,6)}.${d.slice(6,8)}` : d;
+          return `
+            <div class="research-item">
+              <div class="research-firm">${r.firm || ''} · ${dateStr}</div>
+              <div class="research-title">${(r.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+            </div>`;
+        }).join('');
+      } else {
+        const reportsBlock = document.getElementById('intel-reports-block');
+        if (reportsBlock) reportsBlock.style.display = 'none';
+      }
+    }
+
+    if (band) band.style.display = 'grid';
+
+    // 5. Sector Peers (동일업종 비교)
+    if (intel.sectorInfo && intel.sectorInfo.peers && intel.sectorInfo.peers.length > 0 && peersBand) {
+      const peersGrid = document.getElementById('sector-peers-grid');
+      if (peersGrid) {
+        const sorted = [...intel.sectorInfo.peers].sort((a, b) =>
+          (parseFloat(b.marketValue) || 0) - (parseFloat(a.marketValue) || 0)
+        );
+        peersGrid.innerHTML = sorted.map((p, i) => {
+          const pct = parseFloat(p.changePercent) || 0;
+          const dir = p.changeDir === '상승' ? 'up' : p.changeDir === '하락' ? 'down' : '';
+          const sign = pct > 0 ? '▲ +' : pct < 0 ? '▼ ' : '';
+          const isLeader = i === 0;
+          return `
+            <div class="peer-card ${isLeader ? 'is-current' : ''}">
+              <div class="peer-name">${p.name}</div>
+              <div class="peer-change ${dir}">${sign}${Math.abs(pct).toFixed(2)}%</div>
+              <div class="peer-rank">업종 ${i + 1}위${isLeader ? ' · 대장주' : ''}</div>
+            </div>`;
+        }).join('');
+        peersBand.style.display = 'block';
+        updateSectorLeaderBadge(intel.sectorInfo.peers, intel.sectorInfo.industryCode);
+      }
+    }
+
+  } else if (intel.type === 'US') {
+    // US stocks: show 52-week metrics only
+    const metricsGrid = document.getElementById('key-metrics-grid');
+    if (metricsGrid) {
+      const metrics = [
+        { label: '거래소', value: intel.exchange },
+        { label: '통화', value: intel.currency },
+        { label: '52주 최고', value: intel.high52 ? `$${Number(intel.high52).toFixed(2)}` : null },
+        { label: '52주 최저', value: intel.low52 ? `$${Number(intel.low52).toFixed(2)}` : null },
+        { label: '거래량', value: intel.volume ? Number(intel.volume).toLocaleString('en-US') : null },
+      ].filter(m => m.value);
+      metricsGrid.innerHTML = metrics.map(m =>
+        `<div class="metric-item"><span class="metric-label">${m.label}</span><span class="metric-value">${m.value}</span></div>`
+      ).join('');
+    }
+    // Hide KRX-only blocks
+    const investorBlock = document.querySelector('.intel-investor');
+    if (investorBlock) investorBlock.style.display = 'none';
+    const consensusBlock = document.querySelector('.intel-consensus');
+    if (consensusBlock) consensusBlock.style.display = 'none';
+    const reportsBlock = document.getElementById('intel-reports-block');
+    if (reportsBlock) reportsBlock.style.display = 'none';
+    if (band) band.style.display = 'grid';
+  }
+}
+
+function updateSectorLeaderBadge(peers, industryCode) {
+  const badge = document.getElementById('sector-leader-badge');
+  if (!badge || !peers || !peers.length) return;
+  badge.style.display = 'inline-flex';
+  badge.textContent = `동종업계 ${peers.length}개사`;
+}
 
 
-// Helper to format model name nicely
 function formatModelName(modelName) {
   if (modelName === 'gemini-3.5-flash') return 'Gemini 3.5 Flash';
   if (modelName === 'gemini-2.0-flash') return 'Gemini 2.0 Flash';

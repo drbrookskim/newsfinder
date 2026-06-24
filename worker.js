@@ -610,11 +610,59 @@ async function fetchNaverIntegration(ticker) {
   }
 }
 
+// ── Finviz Scraping Helper for US Stocks ──────────────────────────────────
+async function fetchFinvizData(ticker) {
+  try {
+    const url = `https://finviz.com/stock?t=${encodeURIComponent(ticker)}`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html'
+      },
+      redirect: 'follow'
+    });
+    if (!response.ok) return null;
+    const html = await response.text();
+
+    // 1. Sector & Industry
+    let sector = null;
+    let industry = null;
+    const sectorMatch = html.match(/screener\?v=111&(?:amp;)?f=sec_[^"]+"[^>]*>([^<]+)<\/a>/);
+    if (sectorMatch) sector = sectorMatch[1];
+    
+    const industryMatch = html.match(/screener\?v=111&(?:amp;)?f=ind_[^"]+"[^>]*>([^<]+)<\/a>/);
+    if (industryMatch) industry = industryMatch[1];
+
+    // 2. Market Cap
+    let marketCap = null;
+    const marketCapMatch = html.match(/Market Cap<\/div><\/td>\s*<td[^>]*>\s*<div[^>]*>\s*<b>([^<]+)<\/b>/i);
+    if (marketCapMatch) marketCap = marketCapMatch[1];
+
+    // 3. Peers
+    const peers = [];
+    const peerRegex = /data-boxover-ticker="([^"]+)"\s+data-boxover-company="([^"]+)"[^>]*?data-boxover-value="([^"]+)"/g;
+    let match;
+    let limit = 5;
+    while ((match = peerRegex.exec(html)) !== null && limit > 0) {
+      peers.push({
+        code: match[1],
+        name: match[2],
+        marketValue: match[3],
+        changePercent: '-',
+        changeDir: '보합'
+      });
+      limit--;
+    }
+
+    return { sector, industry, marketCap, peers };
+  } catch (e) {
+    console.warn('[Finviz Scraping]', ticker, e.message);
+    return null;
+  }
+}
+
 // ── Yahoo Finance Sector Info (US stocks) ──────────────────────────────────
 async function fetchYahooSectorInfo(ticker) {
-  // The chart API meta object contains sector/industry for US stocks
-  // We already call fetchYahooFinance which hits the chart API — reuse that
-  // but extract the sector fields from meta
   const urls = [
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
     `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`
@@ -629,18 +677,37 @@ async function fetchYahooSectorInfo(ticker) {
       const meta = data?.chart?.result?.[0]?.meta;
       if (!meta) continue;
 
+      const finviz = await fetchFinvizData(ticker);
+      
+      const prevClose = meta.chartPreviousClose ?? meta.regularMarketPreviousClose ?? meta.previousClose ?? meta.regularMarketPrice;
+      const currPrice = meta.regularMarketPrice;
+      const priceDiff = currPrice - prevClose;
+      const pctChange = prevClose ? ((priceDiff / prevClose) * 100).toFixed(2) : '-';
+
+      const peers = finviz?.peers?.length ? [
+        {
+          code: ticker,
+          name: meta.longName || meta.shortName || ticker,
+          marketValue: finviz.marketCap || '-',
+          changePercent: String(pctChange),
+          changeDir: priceDiff > 0 ? '상승' : priceDiff < 0 ? '하락' : '보합'
+        },
+        ...finviz.peers
+      ] : null;
+
       return {
         type: 'US',
+        ticker: ticker,
         exchange: meta.fullExchangeName || meta.exchangeName || '',
         currency: meta.currency || 'USD',
         longName: meta.longName || meta.shortName || ticker,
-        // Yahoo chart meta does not expose sector — return minimal info
-        marketCap: null,
-        sector: null,
-        industry: null,
+        marketCap: finviz?.marketCap || null,
+        sector: finviz?.sector || null,
+        industry: finviz?.industry || null,
         volume: meta.regularMarketVolume || null,
         high52: meta.fiftyTwoWeekHigh || null,
-        low52: meta.fiftyTwoWeekLow || null
+        low52: meta.fiftyTwoWeekLow || null,
+        sectorInfo: peers ? { industryCode: '', peers } : null
       };
     } catch(e) {
       console.error('[YahooSector]', ticker, e.message);

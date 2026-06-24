@@ -683,12 +683,15 @@ function renderMarketIntelligence(intel, currentPrice, currency) {
     }
 
   } else if (intel.type === 'US') {
-    // US stocks: show 52-week metrics only
+    // US stocks
     const metricsGrid = document.getElementById('key-metrics-grid');
     if (metricsGrid) {
       const metrics = [
         { label: '거래소', value: intel.exchange },
         { label: '통화', value: intel.currency },
+        { label: '시가총액', value: intel.marketCap },
+        { label: '섹터', value: intel.sector },
+        { label: '산업군', value: intel.industry },
         { label: '52주 최고', value: intel.high52 ? `$${Number(intel.high52).toFixed(2)}` : null },
         { label: '52주 최저', value: intel.low52 ? `$${Number(intel.low52).toFixed(2)}` : null },
         { label: '거래량', value: intel.volume ? Number(intel.volume).toLocaleString('en-US') : null },
@@ -705,6 +708,44 @@ function renderMarketIntelligence(intel, currentPrice, currency) {
     const reportsBlock = document.getElementById('intel-reports-block');
     if (reportsBlock) reportsBlock.style.display = 'none';
     if (band) band.style.display = 'grid';
+
+    // Sector Peers for US
+    if (intel.sectorInfo && intel.sectorInfo.peers && intel.sectorInfo.peers.length > 0 && peersBand) {
+      const peersGrid = document.getElementById('sector-peers-grid');
+      if (peersGrid) {
+        const parseValue = val => {
+          if (!val) return 0;
+          const num = parseFloat(val);
+          if (isNaN(num)) return 0;
+          if (val.toUpperCase().endsWith('T')) return num * 1000;
+          if (val.toUpperCase().endsWith('B')) return num;
+          if (val.toUpperCase().endsWith('M')) return num / 1000;
+          return num;
+        };
+
+        const sorted = [...intel.sectorInfo.peers].sort((a, b) =>
+          parseValue(b.marketValue) - parseValue(a.marketValue)
+        );
+
+        peersGrid.innerHTML = sorted.map((p, i) => {
+          const pctVal = parseFloat(p.changePercent);
+          const hasPct = !isNaN(pctVal);
+          const dir = p.changeDir === '상승' ? 'up' : p.changeDir === '하락' ? 'down' : '';
+          const sign = hasPct ? (pctVal > 0 ? '▲ +' : pctVal < 0 ? '▼ ' : '') : '';
+          const pctStr = hasPct ? `${Math.abs(pctVal).toFixed(2)}%` : p.changePercent;
+          const isLeader = i === 0;
+          const isCurrent = p.code.toUpperCase() === (intel.ticker || '').toUpperCase();
+          return `
+            <div class="peer-card ${isCurrent ? 'is-current' : ''}">
+              <div class="peer-name">${p.name} (${p.code})</div>
+              <div class="peer-change ${dir}">${sign}${pctStr}</div>
+              <div class="peer-rank">업종 ${i + 1}위${isLeader ? ' · 대장주' : ''}</div>
+            </div>`;
+        }).join('');
+        peersBand.style.display = 'block';
+        updateSectorLeaderBadge(intel.sectorInfo.peers, intel.sector || '');
+      }
+    }
   }
 }
 

@@ -537,7 +537,10 @@ function resetMarketIntelPanel() {
   const band = document.getElementById('market-intel-band');
   const peersBand = document.getElementById('sector-peers-band');
   const sectorBadge = document.getElementById('sector-leader-badge');
-  if (band) band.style.display = 'none';
+  if (band) {
+    band.style.display = 'none';
+    band.classList.remove('is-us');
+  }
   if (peersBand) peersBand.style.display = 'none';
   if (sectorBadge) { sectorBadge.style.display = 'none'; sectorBadge.textContent = ''; }
   // Reset flow values
@@ -561,7 +564,10 @@ function resetMarketIntelPanel() {
   const consensusBlock = document.querySelector('.intel-consensus');
   if (consensusBlock) consensusBlock.style.display = '';
   const peersGrid = document.getElementById('sector-peers-grid');
-  if (peersGrid) peersGrid.innerHTML = '';
+  if (peersGrid) {
+    peersGrid.innerHTML = '';
+    peersGrid.style.gridTemplateColumns = '';
+  }
 }
 
 function renderMarketIntelligence(intel, currentPrice, currency) {
@@ -570,6 +576,8 @@ function renderMarketIntelligence(intel, currentPrice, currency) {
   const peersBand = document.getElementById('sector-peers-band');
 
   if (intel.type === 'KRX') {
+    if (band) band.classList.remove('is-us');
+
     // 1. Investor Flow (수급)
     if (intel.investorFlow) {
       const flow = intel.investorFlow;
@@ -665,16 +673,25 @@ function renderMarketIntelligence(intel, currentPrice, currency) {
         const sorted = [...intel.sectorInfo.peers].sort((a, b) =>
           (parseFloat(b.marketValue) || 0) - (parseFloat(a.marketValue) || 0)
         );
+        const currentTicker = intel.ticker || '';
+        peersGrid.style.gridTemplateColumns = `repeat(${sorted.length}, 1fr)`;
         peersGrid.innerHTML = sorted.map((p, i) => {
           const pct = parseFloat(p.changePercent) || 0;
           const dir = p.changeDir === '상승' ? 'up' : p.changeDir === '하락' ? 'down' : '';
           const sign = pct > 0 ? '▲ +' : pct < 0 ? '▼ ' : '';
           const isLeader = i === 0;
+          const isCurrent = currentTicker.startsWith(p.code) || p.code.startsWith(currentTicker);
           return `
-            <div class="peer-card ${isLeader ? 'is-current' : ''}">
-              <div class="peer-name">${p.name}</div>
-              <div class="peer-change ${dir}">${sign}${Math.abs(pct).toFixed(2)}%</div>
-              <div class="peer-rank">업종 ${i + 1}위${isLeader ? ' · 대장주' : ''}</div>
+            <div class="peer-card ${isCurrent ? 'is-current' : ''}">
+              <div class="peer-ticker-row">
+                <span class="peer-ticker">${p.code}</span>
+                <span class="peer-change ${dir}">${sign}${Math.abs(pct).toFixed(2)}%</span>
+              </div>
+              <div class="peer-name-sub" title="${p.name}">${p.name}</div>
+              <div class="peer-rank-row">
+                <span class="peer-rank">업종 ${i + 1}위</span>
+                ${isLeader ? '<span class="peer-leader-label">대장주</span>' : ''}
+              </div>
             </div>`;
         }).join('');
         peersBand.style.display = 'block';
@@ -683,6 +700,8 @@ function renderMarketIntelligence(intel, currentPrice, currency) {
     }
 
   } else if (intel.type === 'US') {
+    if (band) band.classList.add('is-us');
+
     // US stocks
     const metricsGrid = document.getElementById('key-metrics-grid');
     if (metricsGrid) {
@@ -727,19 +746,26 @@ function renderMarketIntelligence(intel, currentPrice, currency) {
           parseValue(b.marketValue) - parseValue(a.marketValue)
         );
 
+        peersGrid.style.gridTemplateColumns = `repeat(${sorted.length}, 1fr)`;
         peersGrid.innerHTML = sorted.map((p, i) => {
           const pctVal = parseFloat(p.changePercent);
           const hasPct = !isNaN(pctVal);
           const dir = p.changeDir === '상승' ? 'up' : p.changeDir === '하락' ? 'down' : '';
           const sign = hasPct ? (pctVal > 0 ? '▲ +' : pctVal < 0 ? '▼ ' : '') : '';
-          const pctStr = hasPct ? `${Math.abs(pctVal).toFixed(2)}%` : p.changePercent;
+          const pctStr = hasPct ? `${Math.abs(pctVal).toFixed(2)}%` : '—';
           const isLeader = i === 0;
           const isCurrent = p.code.toUpperCase() === (intel.ticker || '').toUpperCase();
           return `
             <div class="peer-card ${isCurrent ? 'is-current' : ''}">
-              <div class="peer-name">${p.name} (${p.code})</div>
-              <div class="peer-change ${dir}">${sign}${pctStr}</div>
-              <div class="peer-rank">업종 ${i + 1}위${isLeader ? ' · 대장주' : ''}</div>
+              <div class="peer-ticker-row">
+                <span class="peer-ticker">${p.code}</span>
+                <span class="peer-change ${dir}">${sign}${pctStr}</span>
+              </div>
+              <div class="peer-name-sub" title="${p.name}">${p.name}</div>
+              <div class="peer-rank-row">
+                <span class="peer-rank">업종 ${i + 1}위</span>
+                ${isLeader ? '<span class="peer-leader-label">대장주</span>' : ''}
+              </div>
             </div>`;
         }).join('');
         peersBand.style.display = 'block';

@@ -953,6 +953,17 @@ body { padding-bottom: 56px; }
   border-bottom: 1px solid rgba(0,0,0,0.08);
   margin-bottom: calc(var(--lh) * 1.5);
 }
+.market-intel-band.is-us {
+  grid-template-columns: 1fr;
+}
+.market-intel-band.is-us .intel-metrics {
+  border-right: none;
+  padding-right: 0;
+}
+.market-intel-band.is-us .key-metrics-grid {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px var(--gutter);
+}
 
 .intel-block {
   padding: 0 var(--gutter) 0 0;
@@ -1088,40 +1099,71 @@ body { padding-bottom: 56px; }
   gap: var(--gutter);
 }
 .peer-card {
-  padding: 12px 0;
+  padding: 12px 8px;
   border-top: 2px solid var(--c-ink);
+  background: transparent;
+  transition: all 0.2s ease;
 }
 .peer-card.is-current {
   border-top-color: var(--c-accent);
+  background: rgba(239, 68, 68, 0.025);
 }
-.peer-name {
-  font-size: 13px;
+.peer-ticker-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.peer-ticker {
+  font-size: 14px;
   font-weight: 700;
-  margin-bottom: 2px;
   color: var(--c-ink);
+}
+.peer-card.is-current .peer-ticker {
+  color: var(--c-accent);
+}
+.peer-name-sub {
+  font-size: 11px;
+  color: var(--c-ink-light);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 6px;
 }
-.peer-card.is-current .peer-name {
-  color: var(--c-accent);
+.peer-rank-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.peer-change {
-  font-size: 13px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.peer-change.up { color: #ef4444; }
-.peer-change.down { color: #3b82f6; }
 .peer-rank {
   font-size: 10px;
   color: var(--c-ink-light);
-  margin-top: 2px;
+  opacity: 0.8;
 }
 .peer-card.is-current .peer-rank {
   color: var(--c-accent);
   font-weight: 700;
+  opacity: 1;
 }
+.peer-leader-label {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  background: var(--c-ink);
+  color: #fff;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+.peer-card.is-current .peer-leader-label {
+  background: var(--c-accent);
+}
+.peer-change {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.peer-change.up { color: #ef4444; }
+.peer-change.down { color: #3b82f6; }
 
 /* ==========================================================================
    Responsive: Market Intelligence (mobile)
@@ -1130,6 +1172,9 @@ body { padding-bottom: 56px; }
   .market-intel-band {
     grid-template-columns: 1fr 1fr;
     gap: 16px;
+  }
+  .market-intel-band.is-us .key-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
   .intel-block {
     border-right: none;
@@ -1142,14 +1187,17 @@ body { padding-bottom: 56px; }
     padding-bottom: 0;
   }
   .sector-peers-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, 1fr) !important;
   }
 }
 @media (max-width: 480px) {
   .market-intel-band {
     grid-template-columns: 1fr;
   }
+  .market-intel-band.is-us .key-metrics-grid {
+    grid-template-columns: 1fr;
+  }
   .sector-peers-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 }

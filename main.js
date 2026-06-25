@@ -356,21 +356,32 @@ async function performAnalysis(companyName) {
 
               // Render supplementary panels
               renderSources(event.sources);
-              render3CAnalysis(event.threeC);
+              render3CAnalysis(event.threeC, event.sources);
 
-              // Render Naver News Sidebar
+              // Render Naver News Sidebar (fallback to sources if naverNewsItems is empty)
               const naverNewsSidebar = document.getElementById('naver-news-sidebar');
               if (naverNewsSidebar) {
-                const items = event.naverNewsItems;
+                const items = (event.naverNewsItems && event.naverNewsItems.length > 0) ? event.naverNewsItems : event.sources;
                 if (items && items.length > 0) {
                   naverNewsSidebar.innerHTML = items.map(item => {
                     const title = (item.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                     const desc = (item.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    const pubDate = item.pubDate ? new Date(item.pubDate).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+                    
+                    let dateStr = '';
+                    if (item.pubDate) {
+                      try {
+                        const parsedDate = new Date(item.pubDate);
+                        if (!isNaN(parsedDate.getTime())) {
+                          dateStr = parsedDate.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        }
+                      } catch {}
+                    }
+                    if (!dateStr) dateStr = '실시간 속보';
+
                     return `<a href="${item.url}" target="_blank" rel="noopener noreferrer" class="naver-news-card">
                       <h4 class="naver-news-title">${title}</h4>
                       <p class="naver-news-desc">${desc}</p>
-                      <div class="naver-news-date">${pubDate}</div>
+                      <div class="naver-news-date">${dateStr}</div>
                     </a>`;
                   }).join('');
                 } else {
@@ -486,28 +497,38 @@ function renderResults(companyName, data) {
   renderSources(data.sources);
 
   // Render 3C analysis
-  render3CAnalysis(data.threeC);
+  render3CAnalysis(data.threeC, data.sources);
 
   // Reset to AI tab on new search
   switchAnalysisTab('ai');
 
-  // Render Naver News Sidebar
+  // Render Naver News Sidebar (fallback to sources if naverNewsItems is empty)
   const naverNewsSidebar = document.getElementById('naver-news-sidebar');
 
   if (naverNewsSidebar) {
-    if (data.naverNewsItems && data.naverNewsItems.length > 0) {
+    const items = (data.naverNewsItems && data.naverNewsItems.length > 0) ? data.naverNewsItems : data.sources;
+    if (items && items.length > 0) {
       let html = '';
-      data.naverNewsItems.forEach(item => {
+      items.forEach(item => {
         const title = (item.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const desc = (item.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const pubDate = new Date(item.pubDate || new Date()).toLocaleString('ko-KR', {
-          month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'
-        });
+        
+        let dateStr = '';
+        if (item.pubDate) {
+          try {
+            const parsedDate = new Date(item.pubDate);
+            if (!isNaN(parsedDate.getTime())) {
+              dateStr = parsedDate.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            }
+          } catch {}
+        }
+        if (!dateStr) dateStr = '실시간 속보';
+
         html += `
           <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="naver-news-card">
             <h4 class="naver-news-title">${title}</h4>
             <p class="naver-news-desc">${desc}</p>
-            <div class="naver-news-date">${pubDate}</div>
+            <div class="naver-news-date">${dateStr}</div>
           </a>
         `;
       });
@@ -543,18 +564,68 @@ function switchAnalysisTab(tabName) {
   });
 }
 
+// --- Fallback 3C Generator ---
+function buildClientFallbackThreeC(companyName, sources = []) {
+  const headline1 = sources?.[0]?.title || `${companyName} 관련 최신 동향`;
+  const headline2 = sources?.[1]?.title || `${companyName} 시장 포지셔닝`;
+  const headline3 = sources?.[2]?.title || `${companyName} 비즈니스 경쟁력`;
+
+  // Basic sentiment analysis from headline keywords
+  let isPositive = false;
+  let isNegative = false;
+  const positiveKeywords = ['상승', '호재', '흑자', '성장', '최고', '이익', '급증', '계약', '인수', '수주', 'record', 'gain', 'rise', 'win', 'growth', 'surge', 'profit', 'success', 'deal', 'expansion'];
+  const negativeKeywords = ['하락', '우려', '적자', '둔화', '감소', '소송', '분쟁', '해지', '감원', 'fall', 'drop', 'loss', 'decline', 'worry', 'risk', 'dispute', 'lawsuit', 'cancel'];
+
+  if (sources && sources.length > 0) {
+    sources.forEach(item => {
+      const titleLower = (item.title || '').toLowerCase();
+      positiveKeywords.forEach(k => { if (titleLower.includes(k)) isPositive = true; });
+      negativeKeywords.forEach(k => { if (titleLower.includes(k)) isNegative = true; });
+    });
+  }
+
+  const sentimentLabel = (isPositive && !isNegative) ? '긍정적' : (isNegative && !isPositive) ? '우려됨' : '중립적';
+
+  return {
+    customer: {
+      label: "Customer (고객/시장)",
+      signal: `시장 수요 신호: ${sentimentLabel}`,
+      bullets: [
+        `보도자료 "${headline1}" 기반 고객 선호도 추이 주시 필요`,
+        "제품 수명 주기 및 신규 시장 점유율 확대를 위한 주요 모멘텀 탐색 중",
+        "소비 성향 및 거시경제 금리 변수가 단기 고객 수요에 영향"
+      ]
+    },
+    company: {
+      label: "Company (자사)",
+      signal: `기업 펀더멘탈: ${headline2.substring(0, 40)}...`,
+      bullets: [
+        `"${headline3}" 뉴스 등 최신 정보 중심의 비즈니스 펀더멘탈 점검`,
+        "운영 효율성 제고 및 제품 믹스 개선 작업을 통한 마진 스프레드 방어",
+        "차세대 파이낸셜 성장 동력 확보를 위한 투자 집행 속도 조절"
+      ]
+    },
+    competitor: {
+      label: "Competitor (경쟁사)",
+      signal: "업계 경쟁 구도 분석 중",
+      bullets: [
+        "동종 업계 내 기술 개발 경쟁 격화 및 가격 책정 유연성 확보 여부 모니터링",
+        "시장 지배력 확대를 위한 파트너십 구축 및 독자적인 에코시스템 강화 전략",
+        "글로벌 대체 공급원 출현 가능성 및 공급망 경쟁력 비교 분석 중요"
+      ]
+    }
+  };
+}
+
 // --- 3C Analysis Renderer ---
-function render3CAnalysis(threeC) {
+function render3CAnalysis(threeC, sources = []) {
   const container = document.getElementById('threec-container');
   if (!container) return;
 
+  const companyName = (document.getElementById('result-company-name')?.textContent) || '선택 종목';
+
   if (!threeC) {
-    container.innerHTML = `
-      <div class="threec-empty">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.3"><circle cx="9" cy="12" r="3"/><circle cx="18" cy="5" r="3"/><circle cx="18" cy="19" r="3"/><path d="M11.83 11.17L15.17 6.83M11.83 12.83L15.17 17.17"/></svg>
-        <p>3C 분석 데이터를 가져오지 못했습니다.</p>
-      </div>`;
-    return;
+    threeC = buildClientFallbackThreeC(companyName, sources);
   }
 
   const cardDefs = [
@@ -1765,6 +1836,48 @@ function generateClientMockData(companyName, liveNews) {
     dynamicOpportunity = `**"${headline2}"** 뉴스에 제시된 신기술 적용 및 가동 영역 확대 계획이 정상 궤도에 오를 경우, 글로벌 공급선 다변화 수혜와 함께 견고한 턴어라운드를 실현할 기회가 존재합니다.`;
   }
 
+  const naverNewsItems = liveNews && liveNews.length > 0 ? liveNews.slice(0, 8).map(n => ({
+    title: n.title,
+    description: n.description || n.title,
+    pubDate: n.pubDate || '',
+    url: n.url || n.link || ''
+  })) : [];
+
+  const headline1 = liveNews?.[0]?.title || `${companyName} 최신 동향`;
+  const headline2 = liveNews?.[1]?.title || `${companyName} 시장 현황`;
+  const headline3 = liveNews?.[2]?.title || `${companyName} 사업 운영`;
+  const sentimentLabel = sentiment?.includes('긍정') ? '긍정적' : sentiment?.includes('우려') ? '우려됨' : '중립적';
+
+  const threeC = {
+    customer: {
+      label: "Customer (고객/시장)",
+      signal: `시장 수요 신호: ${sentimentLabel}`,
+      bullets: [
+        `최신 보도 "${headline1}"에 따른 고객·시장 반응 주목 필요`,
+        "신규 제품·서비스 출시에 따른 고객 니즈 변화 및 채택률 동향이 주요 변수",
+        "국내외 핵심 고객층의 구매 결정 사이클과 예산 집행 시기가 단기 매출에 영향"
+      ]
+    },
+    company: {
+      label: "Company (자사)",
+      signal: `기업 펀더멘탈: ${headline2.substring(0, 40)}...`,
+      bullets: [
+        `"${headline3}" 등 최근 보도 기준, 핵심 사업 부문의 운영 지표 추적 필요`,
+        "원가 효율화 및 고마진 제품 믹스 전환 여부가 수익성 방향성을 결정",
+        "R&D 투자 지속 여부 및 신사업 실행 속도가 중장기 경쟁력을 좌우"
+      ]
+    },
+    competitor: {
+      label: "Competitor (경쟁사)",
+      signal: "업계 경쟁 구도 모니터링 중",
+      bullets: [
+        "동종 업계 경쟁사들의 기술 격차 및 가격 전략 변화 추이 주시 필요",
+        "시장 점유율 확대를 위한 마케팅·파트너십 전략이 핵심 차별화 포인트",
+        "글로벌 선도 기업과의 기술 및 공급망 경쟁력 격차 분석이 투자 판단에 중요"
+      ]
+    }
+  };
+
   return {
     modelUsed: 'AI Engine Working',
     insight: `## 1. 핵심 뉴스 요약
@@ -1777,7 +1890,9 @@ ${summaryBullets}
 ## 3. Investor Insights
 - **Short-term Risks**: ${dynamicRisk}
 - **Long-term Opportunities**: ${dynamicOpportunity}`,
-    sources: sources
+    sources: sources,
+    naverNewsItems: naverNewsItems,
+    threeC: threeC
   };
 }
 // --- Bottom Sliding Marquee Summaries Logic ---

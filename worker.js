@@ -80,8 +80,12 @@ export default {
   try {
     const expandedQuery = expandSearchQuery(companyName);
     
-    // 1. Fetch Naver News
-    const naverNews = await fetchNaverNews(expandedQuery, globalEnv.NAVER_CLIENT_ID, globalEnv.NAVER_CLIENT_SECRET);
+    // 1. Fetch Naver and Google News in parallel
+    const [naverNews, liveNews] = await Promise.all([
+      fetchNaverNews(expandedQuery, globalEnv.NAVER_CLIENT_ID, globalEnv.NAVER_CLIENT_SECRET),
+      fetchGoogleNewsRSS(companyName)
+    ]);
+
     naverNewsItems = naverNews.map(news => ({
       title: news.title,
       description: news.description,
@@ -89,8 +93,6 @@ export default {
       url: news.url || news.link
     }));
 
-    // 2. Fetch Google RSS News to use as AI context
-    const liveNews = await fetchGoogleNewsRSS(companyName);
     if (liveNews && liveNews.length > 0) {
       const topNews = liveNews.slice(0, 5); // Take top 5 news
       rssNewsText = topNews.map((n, i) => `[${i+1}] 제목: ${n.title}\n내용: ${n.snippet}`).join('\n\n');
@@ -108,8 +110,9 @@ export default {
       throw new Error('Cloudflare AI binding is not configured in wrangler.toml');
     }
 
-    console.log(`Analyzing news for company: ${companyName} via CF AI...`);
-    const model = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+    console.log(`Analyzing news for company: ${companyName} via CF AI (Parallel)...`);
+    const model70b = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+    const model8b = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
     
     // Determine industry hint
     const industryLower = companyName.toLowerCase();
@@ -119,7 +122,7 @@ export default {
       industryHint = '\n[업종 지침] 소프트웨어/SaaS/테크 기업. ARR, NRR, 플랫폼 성장을 중심으로 서술.';
     }
 
-    // --- 1. Main Insight Generation ---
+    // --- 1. Main Insight Generation Setup ---
     const mainMessages = [
       {
         role: "system",
@@ -136,10 +139,7 @@ export default {
       }
     ];
 
-    const cfInsightResponse = await globalEnv.AI.run(model, { messages: mainMessages });
-    const rawInsight = cfInsightResponse.response || cfInsightResponse;
-
-    // --- 2. 3C Strategy Generation ---
+    // --- 2. 3C Strategy Generation Setup ---
     const threeCMessages = [
       {
         role: "system",
@@ -156,20 +156,33 @@ export default {
       }
     ];
 
-    const cfThreeCResponse = await globalEnv.AI.run(model, { messages: threeCMessages });
+    // Parallel Inference: Execute 70B (report) and 8B (3C JSON) concurrently
+    const [cfInsightResponse, cfThreeCResponse] = await Promise.all([
+      globalEnv.AI.run(model70b, { messages: mainMessages }),
+      globalEnv.AI.run(model8b, { messages: threeCMessages })
+    ]);
+
+    const rawInsight = cfInsightResponse.response || cfInsightResponse;
     let rawThreeC = cfThreeCResponse.response || cfThreeCResponse;
     let threeC;
     try {
       if (typeof rawThreeC === 'object' && rawThreeC !== null) {
-        // Some models or environments auto-parse the JSON response
         threeC = rawThreeC;
       } else {
         rawThreeC = String(rawThreeC).replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
         threeC = JSON.parse(rawThreeC);
       }
     } catch(e) {
-      console.error("Failed to parse 3C JSON", e, rawThreeC);
-      throw e;
+      console.warn("Failed to parse 3C JSON from 8b model, retrying with 70b...", e);
+      try {
+        const retryThreeCResponse = await globalEnv.AI.run(model70b, { messages: threeCMessages });
+        let retryRawThreeC = retryThreeCResponse.response || retryThreeCResponse;
+        retryRawThreeC = String(retryRawThreeC).replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
+        threeC = JSON.parse(retryRawThreeC);
+      } catch(retryError) {
+        console.error("Retry with 70b also failed:", retryError);
+        throw e;
+      }
     }
 
     // Return results
@@ -177,7 +190,7 @@ export default {
       insight: rawInsight,
       threeC,
       sources: sources.length > 0 ? sources : null,
-      modelUsed: model,
+      modelUsed: `${model70b} + ${model8b}`,
       naverNewsItems
     });
 

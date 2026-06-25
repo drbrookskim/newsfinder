@@ -277,89 +277,156 @@ function switchPanel(panelName) {
 async function performAnalysis(companyName) {
   if (!companyName) return;
 
-  // Toggle UI state to loading
   switchPanel('loading');
   submitBtn.disabled = true;
   companyInput.disabled = true;
-
-  // Initialize timeline loading steps
   updateLoadingStep('search');
 
-  // Dynamic timing updates to simulate active processes for better UX
-  let stepTimeout1, stepTimeout2;
-  
-  stepTimeout1 = setTimeout(() => {
-    updateLoadingStep('analyze');
-  }, 1800);
-
-  stepTimeout2 = setTimeout(() => {
-    updateLoadingStep('render');
-  }, 3800);
+  // Progressive loading step animations
+  let stepTimeout1 = setTimeout(() => updateLoadingStep('analyze'), 1800);
+  let stepTimeout2 = setTimeout(() => updateLoadingStep('render'), 3800);
 
   try {
     const response = await fetch(`${API_BASE}/api/analyze`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ companyName }),
     });
 
-    // Clear loading timeouts
     clearTimeout(stepTimeout1);
     clearTimeout(stepTimeout2);
 
     if (!response.ok) {
-      const errorData = await response.json();
+      // Non-streaming error response
+      const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.details || errorData.error || '분석 중 실패했습니다.');
     }
 
-    const data = await response.json();
+    const contentType = response.headers.get('content-type') || '';
 
-    // Render results
-    renderResults(companyName, data);
-    
-    // Save to history
-    saveToHistory(companyName);
+    // ── SSE Streaming Path ────────────────────────────────────────────────
+    if (contentType.includes('text/event-stream')) {
+      // Prepare results panel immediately so user sees content as it streams in
+      resultCompanyName.textContent = companyName;
+      resetMarketIntelPanel();
+      updateImpactBadge('neutral');
+      insightMarkdown.innerHTML = '<div class="streaming-cursor">▋</div>';
+      switchPanel('results');
+      switchAnalysisTab('ai');
 
-    // Swap panel to results
-    switchPanel('results');
-    fetchAndDisplayStockPrice(companyName);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = '';
+      let streamedText = '';
+      let renderTimer = null;
+
+      // Throttled render: batch DOM updates to avoid layout thrashing
+      const scheduleRender = () => {
+        if (renderTimer) return;
+        renderTimer = requestAnimationFrame(() => {
+          renderTimer = null;
+          insightMarkdown.innerHTML = customMarkdownParser(streamedText) + '<span class="streaming-cursor">▋</span>';
+        });
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        sseBuffer += decoder.decode(value, { stream: true });
+        const parts = sseBuffer.split('\n\n');
+        sseBuffer = parts.pop() ?? '';
+
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+
+            if (event.type === 'token') {
+              streamedText += event.text;
+              scheduleRender();
+
+            } else if (event.type === 'complete') {
+              // Final render — remove cursor
+              const finalInsight = event.insight || streamedText;
+              const impact = detectMarketImpact(finalInsight);
+              updateImpactBadge(impact);
+              insightMarkdown.innerHTML = customMarkdownParser(finalInsight);
+
+              // Render supplementary panels
+              renderSources(event.sources);
+              render3CAnalysis(event.threeC);
+
+              // Render Naver News Sidebar
+              const naverNewsSidebar = document.getElementById('naver-news-sidebar');
+              if (naverNewsSidebar) {
+                const items = event.naverNewsItems;
+                if (items && items.length > 0) {
+                  naverNewsSidebar.innerHTML = items.map(item => {
+                    const title = (item.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const desc = (item.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const pubDate = item.pubDate ? new Date(item.pubDate).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+                    return `<a href="${item.url}" target="_blank" rel="noopener noreferrer" class="naver-news-card">
+                      <h4 class="naver-news-title">${title}</h4>
+                      <p class="naver-news-desc">${desc}</p>
+                      <div class="naver-news-date">${pubDate}</div>
+                    </a>`;
+                  }).join('');
+                } else {
+                  naverNewsSidebar.innerHTML = '<p class="news-meta">최신 뉴스 데이터를 불러올 수 없습니다.</p>';
+                }
+              }
+
+              // Marquee summary
+              const extractedSummary = extractSummaryText(finalInsight);
+              if (extractedSummary) addSummaryToMarquee(companyName, extractedSummary, impact);
+
+              saveToHistory(companyName);
+              fetchAndDisplayStockPrice(companyName);
+
+            } else if (event.type === 'error') {
+              throw new Error(event.message || '스트리밍 오류');
+            }
+          } catch (parseErr) {
+            if (parseErr.message && parseErr.message !== '스트리밍 오류') {
+              console.warn('[SSE parse]', parseErr.message);
+            } else {
+              throw parseErr;
+            }
+          }
+        }
+      }
+
+    } else {
+      // ── Fallback: Non-streaming JSON response ─────────────────────────
+      const data = await response.json();
+      renderResults(companyName, data);
+      saveToHistory(companyName);
+      switchPanel('results');
+      fetchAndDisplayStockPrice(companyName);
+    }
 
   } catch (error) {
-    console.warn('Backend fetch failed. Attempting 100% client-side live RSS fallback...', error);
-    
+    console.warn('Backend fetch failed. Attempting client-side fallback...', error);
+
     try {
-      // Update loading status for user visibility during fallback
       loadingTitle.textContent = '클라이언트 실시간 뉴스 검색 중...';
       loadingDesc.textContent = '백엔드 오프라인 상태를 감지하여 브라우저에서 실시간 구글 뉴스를 다이렉트 수집하고 있습니다.';
-      
+
       let clientNews = null;
-      try {
-        clientNews = await fetchGoogleNewsRSSClient(companyName);
-      } catch (rssErr) {
-        console.warn('[CLIENT FALLBACK] Client RSS fetch failed, proceeding with default mock generation:', rssErr);
-      }
-      
-      console.log('[CLIENT FALLBACK] Generating fallback results dashboard...');
+      try { clientNews = await fetchGoogleNewsRSSClient(companyName); } catch {}
+
       const demoData = generateClientMockData(companyName, clientNews);
-      
-      // Render results on client side
       renderResults(companyName, demoData);
       saveToHistory(companyName);
-      
-      // Clear loading timeouts
-      clearTimeout(stepTimeout1);
-      clearTimeout(stepTimeout2);
-      
       switchPanel('results');
       fetchAndDisplayStockPrice(companyName);
       return;
     } catch (fallbackErr) {
-      console.error('[CLIENT FALLBACK] Client-side fallback failed:', fallbackErr);
+      console.error('[CLIENT FALLBACK] Failed:', fallbackErr);
     }
 
-    // If fallback failed, display the original network error screen
     console.error('Analysis failed:', error);
     document.getElementById('error-desc').textContent = error.message || '네트워크 장애 또는 백엔드 오프라인 상태입니다.';
     switchPanel('error');

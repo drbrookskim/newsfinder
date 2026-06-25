@@ -78,25 +78,20 @@ export default {
   let sources = [];
   
   try {
-    const expandedQuery = expandSearchQuery(companyName);
-    
-    // 1. Fetch Naver and Google News in parallel
-    const [naverNews, liveNews] = await Promise.all([
-      fetchNaverNews(expandedQuery, globalEnv.NAVER_CLIENT_ID, globalEnv.NAVER_CLIENT_SECRET),
-      fetchGoogleNewsRSS(companyName)
-    ]);
-
-    naverNewsItems = naverNews.map(news => ({
-      title: news.title,
-      description: news.description,
-      pubDate: news.pubDate,
-      url: news.url || news.link
-    }));
+    // Single unified news fetch — fetchGoogleNewsRSS already includes Naver internally
+    const liveNews = await fetchGoogleNewsRSS(companyName);
 
     if (liveNews && liveNews.length > 0) {
-      const topNews = liveNews.slice(0, 5); // Take top 5 news
-      rssNewsText = topNews.map((n, i) => `[${i+1}] 제목: ${n.title}\n내용: ${n.snippet}`).join('\n\n');
-      sources = topNews.map(n => ({ title: n.title, url: n.link }));
+      naverNewsItems = liveNews.slice(0, 8).map(n => ({
+        title: n.title,
+        description: n.description || n.title,
+        pubDate: n.pubDate || '',
+        url: n.url || n.link || ''
+      }));
+
+      const topNews = liveNews.slice(0, 5); // Top 5 for AI analysis context
+      rssNewsText = topNews.map((n, i) => `[${i+1}] 제목: ${n.title}\n내용: ${(n.description || n.title).slice(0, 120)}`).join('\n\n');
+      sources = topNews.map(n => ({ title: n.title, url: n.url || n.link || '' }));
     } else {
       rssNewsText = '최근 뉴스를 찾을 수 없습니다.';
     }
@@ -110,92 +105,119 @@ export default {
       throw new Error('Cloudflare AI binding is not configured in wrangler.toml');
     }
 
-    console.log(`Analyzing news for company: ${companyName} via CF AI (Parallel)...`);
+    console.log(`Analyzing news for company: ${companyName} via CF AI (SSE Streaming)...`);
     const model70b = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
-    const model8b = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+    const model8b = '@cf/meta/llama-3.1-8b-instruct-fp8';
     
-    // Determine industry hint
+    // Industry hint
     const industryLower = companyName.toLowerCase();
     const isTechCompany = ['tech', 'soft', 'cloud', 'saas', 'data', 'git', 'dev'].some(k => industryLower.includes(k));
-    let industryHint = '';
-    if (isTechCompany) {
-      industryHint = '\n[업종 지침] 소프트웨어/SaaS/테크 기업. ARR, NRR, 플랫폼 성장을 중심으로 서술.';
-    }
+    const industryHint = isTechCompany ? '\n[업종 지침] 소프트웨어/SaaS/테크 기업. ARR, NRR, 플랫폼 성장을 중심으로 서술.' : '';
 
-    // --- 1. Main Insight Generation Setup ---
     const mainMessages = [
       {
         role: "system",
-        content: `너는 주식 분석 플랫폼 'Signnith'의 금융 전문 AI 에이전트야. 제공된 뉴스 텍스트만을 바탕으로 마크다운 형식으로 분석을 작성해라. 뉴스에 없는 내용을 지어내지 마라.
-## 1. 핵심 뉴스 요약
-(재무 실적, 핵심 사업, 규제, 미래 성장 동력 등)
-## 2. 시장 영향 분석
-('긍정적', '중립적', '우려됨' 중 하나를 명시)
-## 3. 투자자 인사이트`
+        content: `너는 주식 분석 플랫폼 'Signnith'의 금융 전문 AI 에이전트야. 제공된 뉴스만을 바탕으로 마크다운으로 분석하라.\n## 1. 핵심 뉴스 요약\n## 2. 시장 영향 분석\n('긍정적'|'중립적'|'우려됨' 중 택1)\n## 3. 투자자 인사이트`
       },
       {
         role: "user",
-        content: `오늘 날짜(${formattedDate}) 기준, "${companyName}"에 대한 실시간 뉴스 요약 데이터다:\n\n${rssNewsText}\n\n이 데이터를 바탕으로 정해진 마크다운 포맷으로 분석 리포트를 작성해줘.${industryHint}`
+        content: `오늘(${formattedDate}), "${companyName}" 최신 뉴스:\n\n${rssNewsText}\n\n위 뉴스 기반으로 마크다운 분석 리포트를 작성해줘.${industryHint}`
       }
     ];
 
-    // --- 2. 3C Strategy Generation Setup ---
     const threeCMessages = [
       {
         role: "system",
-        content: "You are a structured business analyst. You MUST respond ONLY with valid JSON. Do not wrap in ```json, do not add any explanation."
+        content: "Respond ONLY with valid JSON. No markdown, no explanation."
       },
       {
         role: "user",
-        content: `다음 뉴스 컨텍스트를 바탕으로 JSON 구조에 맞추어 3C (Customer, Company, Competitor) 전략 분석 결과를 작성하라.\n\n[종목명]: ${companyName}\n[뉴스 컨텍스트]:\n${rssNewsText}\n\n[출력 JSON 구조]:
-{
-  "customer": { "label": "Customer", "signal": "핵심 1문장", "bullets": ["상세 1", "상세 2"] },
-  "company": { "label": "Company", "signal": "핵심 1문장", "bullets": ["상세 1", "상세 2"] },
-  "competitor": { "label": "Competitor", "signal": "핵심 1문장", "bullets": ["상세 1", "상세 2"] }
-}`
+        content: `3C 분석(Customer/Company/Competitor) JSON:\n종목: ${companyName}\n뉴스: ${rssNewsText.slice(0, 600)}\n\n{"customer":{"label":"Customer","signal":"1문장","bullets":["항목1","항목2"]},"company":{"label":"Company","signal":"1문장","bullets":["항목1","항목2"]},"competitor":{"label":"Competitor","signal":"1문장","bullets":["항목1","항목2"]}}`
       }
     ];
 
-    // Parallel Inference: Execute 70B (report) and 8B (3C JSON) concurrently
-    const [cfInsightResponse, cfThreeCResponse] = await Promise.all([
-      globalEnv.AI.run(model70b, { messages: mainMessages }),
-      globalEnv.AI.run(model8b, { messages: threeCMessages })
-    ]);
+    // ── SSE Streaming: 3C (8B fast) + insight stream (70B) start in parallel ──
+    const threeCPromise = globalEnv.AI.run(model8b, { messages: threeCMessages, max_tokens: 350 });
+    const insightStream = await globalEnv.AI.run(model70b, { messages: mainMessages, max_tokens: 600, stream: true });
 
-    const rawInsight = cfInsightResponse.response || cfInsightResponse;
-    let rawThreeC = cfThreeCResponse.response || cfThreeCResponse;
-    let threeC;
-    try {
-      if (typeof rawThreeC === 'object' && rawThreeC !== null) {
-        threeC = rawThreeC;
-      } else {
-        rawThreeC = String(rawThreeC).replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
-        threeC = JSON.parse(rawThreeC);
-      }
-    } catch(e) {
-      console.warn("Failed to parse 3C JSON from 8b model, retrying with 70b...", e);
+    const encoder = new TextEncoder();
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    const sendEvent = (data) => writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+
+    (async () => {
+      let fullInsight = '';
       try {
-        const retryThreeCResponse = await globalEnv.AI.run(model70b, { messages: threeCMessages });
-        let retryRawThreeC = retryThreeCResponse.response || retryThreeCResponse;
-        retryRawThreeC = String(retryRawThreeC).replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
-        threeC = JSON.parse(retryRawThreeC);
-      } catch(retryError) {
-        console.error("Retry with 70b also failed:", retryError);
-        throw e;
-      }
-    }
+        const reader = insightStream.getReader();
+        const dec = new TextDecoder();
+        let sseBuffer = '';
 
-    // Return results
-    return createResponse({
-      insight: rawInsight,
-      threeC,
-      sources: sources.length > 0 ? sources : null,
-      modelUsed: `${model70b} + ${model8b}`,
-      naverNewsItems
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          sseBuffer += dec.decode(value, { stream: true });
+          const parts = sseBuffer.split('\n\n');
+          sseBuffer = parts.pop() ?? '';
+          for (const part of parts) {
+            const line = part.trim();
+            if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
+            try {
+              const parsed = JSON.parse(line.slice(6));
+              const token = parsed.response ?? '';
+              if (token) { fullInsight += token; await sendEvent({ type: 'token', text: token }); }
+            } catch { /* skip malformed */ }
+          }
+        }
+
+        // 3C should be resolved or nearly done by now
+        let threeC = null;
+        try {
+          const cfThreeCResponse = await threeCPromise;
+          let rawThreeC = cfThreeCResponse.response || cfThreeCResponse;
+          if (typeof rawThreeC === 'object' && rawThreeC !== null) {
+            threeC = rawThreeC;
+          } else {
+            rawThreeC = String(rawThreeC).replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
+            threeC = JSON.parse(rawThreeC);
+          }
+        } catch (e) {
+          console.warn('[3C] Parse failed, retrying:', e.message);
+          try {
+            const retry = await globalEnv.AI.run(model70b, { messages: threeCMessages, max_tokens: 350 });
+            let raw = String(retry.response || retry).replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
+            threeC = JSON.parse(raw);
+          } catch { threeC = null; }
+        }
+
+        await sendEvent({
+          type: 'complete',
+          insight: fullInsight,
+          threeC,
+          sources: sources.length > 0 ? sources : null,
+          naverNewsItems
+        });
+
+      } catch (streamErr) {
+        console.error('[SSE Stream] Error:', streamErr.message);
+        await sendEvent({ type: 'error', message: streamErr.message });
+      } finally {
+        await writer.write(encoder.encode('data: [DONE]\n\n'));
+        await writer.close();
+      }
+    })();
+
+    return new Response(readable, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',
+        ...CORS_HEADERS
+      }
     });
 
   } catch (error) {
-    console.error('CF AI failed. Falling back to Live RSS Demo Mode. Error details:', error.message);
+    console.error('CF AI failed. Falling back to Demo Mode. Error:', error.message);
     const demoData = await getMockData(companyName);
     return createResponse({ ...demoData, naverNewsItems, debugError: error.message });
   }
@@ -227,12 +249,29 @@ async function fetchSingleFeed(url) {
       const itemContent = match[1];
       const titleMatch = itemContent.match(/<title>([\s\S]*?)<\/title>/);
       const linkMatch = itemContent.match(/<link>([\s\S]*?)<\/link>/);
+      const pubDateMatch = itemContent.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
+      const descMatch = itemContent.match(/<description>([\s\S]*?)<\/description>/);
       
       if (titleMatch && linkMatch) {
         let title = titleMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
         let url = linkMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
+        const pubDate = pubDateMatch ? pubDateMatch[1].trim() : '';
         
-        // Decode XML entities
+        // Extract description text (strip HTML tags and decode entities)
+        let description = '';
+        if (descMatch) {
+          let rawDesc = descMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1');
+          // Decode HTML entities first
+          rawDesc = rawDesc.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+          // Strip HTML tags
+          rawDesc = rawDesc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          // Remove trailing publisher suffix like " - Publisher Name"
+          const dashIdx = rawDesc.lastIndexOf(' - ');
+          if (dashIdx > 30) rawDesc = rawDesc.substring(0, dashIdx).trim();
+          description = rawDesc;
+        }
+        
+        // Decode XML entities in title
         title = title
           .replace(/&amp;/g, '&')
           .replace(/&lt;/g, '<')
@@ -244,10 +283,13 @@ async function fetchSingleFeed(url) {
         const pubIndex = title.lastIndexOf(' - ');
         if (pubIndex !== -1) {
           publisher = title.substring(pubIndex + 3).trim();
+          title = title.substring(0, pubIndex).trim();
         }
         
         items.push({
           title,
+          description: description || title,
+          pubDate,
           url,
           publisher
         });
@@ -676,11 +718,16 @@ async function fetchFinvizData(ticker) {
 
 // ── Yahoo Finance Sector Info (US stocks) ──────────────────────────────────
 async function fetchYahooSectorInfo(ticker) {
-  const urls = [
+  const yahooUrls = [
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
     `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`
   ];
-  for (const url of urls) {
+
+  // Fetch Yahoo + Finviz in PARALLEL (not sequential)
+  let yahooMeta = null;
+  const finvizPromise = fetchFinvizData(ticker);
+
+  for (const url of yahooUrls) {
     try {
       const response = await fetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
@@ -689,44 +736,48 @@ async function fetchYahooSectorInfo(ticker) {
       const data = await response.json();
       const meta = data?.chart?.result?.[0]?.meta;
       if (!meta) continue;
-
-      const finviz = await fetchFinvizData(ticker);
-      
-      const prevClose = meta.chartPreviousClose ?? meta.regularMarketPreviousClose ?? meta.previousClose ?? meta.regularMarketPrice;
-      const currPrice = meta.regularMarketPrice;
-      const priceDiff = currPrice - prevClose;
-      const pctChange = prevClose ? ((priceDiff / prevClose) * 100).toFixed(2) : '-';
-
-      const peers = finviz?.peers?.length ? [
-        {
-          code: ticker,
-          name: meta.longName || meta.shortName || ticker,
-          marketValue: finviz.marketCap || '-',
-          changePercent: String(pctChange),
-          changeDir: priceDiff > 0 ? '상승' : priceDiff < 0 ? '하락' : '보합'
-        },
-        ...finviz.peers
-      ] : null;
-
-      return {
-        type: 'US',
-        ticker: ticker,
-        exchange: meta.fullExchangeName || meta.exchangeName || '',
-        currency: meta.currency || 'USD',
-        longName: meta.longName || meta.shortName || ticker,
-        marketCap: finviz?.marketCap || null,
-        sector: finviz?.sector || null,
-        industry: finviz?.industry || null,
-        volume: meta.regularMarketVolume || null,
-        high52: meta.fiftyTwoWeekHigh || null,
-        low52: meta.fiftyTwoWeekLow || null,
-        sectorInfo: peers ? { industryCode: '', peers } : null
-      };
+      yahooMeta = meta;
+      break; // Got valid data, stop trying URLs
     } catch(e) {
       console.error('[YahooSector]', ticker, e.message);
     }
   }
-  return null;
+
+  if (!yahooMeta) return null;
+
+  // Wait for Finviz (should already be done or nearly done by now)
+  const finviz = await finvizPromise;
+
+  const prevClose = yahooMeta.chartPreviousClose ?? yahooMeta.regularMarketPreviousClose ?? yahooMeta.previousClose ?? yahooMeta.regularMarketPrice;
+  const currPrice = yahooMeta.regularMarketPrice;
+  const priceDiff = currPrice - prevClose;
+  const pctChange = prevClose ? ((priceDiff / prevClose) * 100).toFixed(2) : '-';
+
+  const peers = finviz?.peers?.length ? [
+    {
+      code: ticker,
+      name: yahooMeta.longName || yahooMeta.shortName || ticker,
+      marketValue: finviz.marketCap || '-',
+      changePercent: String(pctChange),
+      changeDir: priceDiff > 0 ? '상승' : priceDiff < 0 ? '하락' : '보합'
+    },
+    ...finviz.peers
+  ] : null;
+
+  return {
+    type: 'US',
+    ticker: ticker,
+    exchange: yahooMeta.fullExchangeName || yahooMeta.exchangeName || '',
+    currency: yahooMeta.currency || 'USD',
+    longName: yahooMeta.longName || yahooMeta.shortName || ticker,
+    marketCap: finviz?.marketCap || null,
+    sector: finviz?.sector || null,
+    industry: finviz?.industry || null,
+    volume: yahooMeta.regularMarketVolume || null,
+    high52: yahooMeta.fiftyTwoWeekHigh || null,
+    low52: yahooMeta.fiftyTwoWeekLow || null,
+    sectorInfo: peers ? { industryCode: '', peers } : null
+  };
 }
 
 async function fetchYahooFinance(ticker) {
@@ -1070,22 +1121,26 @@ function expandSearchQuery(companyName) {
 // Zero-dependency Google News RSS Parser fetching both Korean and English if needed
 async function fetchGoogleNewsRSS(companyName) {
   try {
+    // Strategy: Use simple original name first (more reliable), expanded query as fallback
+    const simpleQuery = companyName.trim();
     const expandedQuery = expandSearchQuery(companyName);
-    const encodedQuery = encodeURIComponent(expandedQuery);
-    const hasEnglish = /[a-zA-Z]/.test(expandedQuery);
+    // Only use expanded query if it's meaningfully different from the original
+    const useExpanded = expandedQuery !== simpleQuery;
+    const primaryQuery = simpleQuery;
+    const hasEnglish = /[a-zA-Z]/.test(simpleQuery);
+    
+    const encodedPrimary = encodeURIComponent(primaryQuery);
     
     if (hasEnglish) {
-      console.log(`[RSS Fetch] Expanded search query "${expandedQuery}" contains English. Fetching both Korean and US/English feeds...`);
-      const koUrl = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ko&gl=KR&ceid=KR:ko`;
-      const enUrl = `https://news.google.com/rss/search?q=${encodedQuery}&hl=en&gl=US&ceid=US:en`;
+      console.log(`[RSS Fetch] English query. Fetching EN + KO + Bing in parallel for: ${simpleQuery}`);
+      const koUrl = `https://news.google.com/rss/search?q=${encodedPrimary}&hl=ko&gl=KR&ceid=KR:ko`;
+      const enUrl = `https://news.google.com/rss/search?q=${encodedPrimary}&hl=en&gl=US&ceid=US:en`;
+      const bingUrl = `https://www.bing.com/news/search?q=${encodedPrimary}&format=RSS`;
       
-      // Multi-channel: Google EN + Bing + Google KO
-      const bingUrl = `https://www.bing.com/news/search?q=${encodedQuery}&format=RSS`;
-      
-      const [koItems, enItems, bingItems] = await Promise.all([
-        fetchSingleFeed(koUrl),
+      const [enItems, bingItems, koItems] = await Promise.all([
         fetchSingleFeed(enUrl),
-        fetchSingleFeed(bingUrl)
+        fetchSingleFeed(bingUrl),
+        fetchSingleFeed(koUrl)
       ]);
       
       // Priority: EN Google > Bing > KO Google; deduplicate by title prefix
@@ -1100,19 +1155,25 @@ async function fetchGoogleNewsRSS(companyName) {
       console.log(`[RSS Multi-Channel] ${mergedItems.length} articles — Google EN:${enItems.length}, Bing:${bingItems.length}, Google KO:${koItems.length}`);
       return mergedItems.length > 0 ? mergedItems : null;
     } else {
-      const url = `https://news.google.com/rss/search?q=${encodedQuery}&hl=ko&gl=KR&ceid=KR:ko`;
-      const bingKoUrl = `https://www.bing.com/news/search?q=${encodedQuery}&format=RSS&mkt=ko-KR`;
-      const naverClientId = globalEnv.NAVER_CLIENT_ID;
-      const naverClientSecret = globalEnv.NAVER_CLIENT_SECRET;
+      const url = `https://news.google.com/rss/search?q=${encodedPrimary}&hl=ko&gl=KR&ceid=KR:ko`;
+      const bingKoUrl = `https://www.bing.com/news/search?q=${encodedPrimary}&format=RSS&mkt=ko-KR`;
+      const naverClientId = globalEnv?.NAVER_CLIENT_ID;
+      const naverClientSecret = globalEnv?.NAVER_CLIENT_SECRET;
       console.log(`[RSS Fetch] Korean query — Google KO + Bing KO${naverClientId ? ' + Naver' : ''} for: ${companyName}...`);
-      const [koItems, bingItems, naverItems] = await Promise.all([
+
+      // Run all feeds in parallel; Naver is only called once (here, not duplicated upstream)
+      const feedPromises = [
         fetchSingleFeed(url),
-        fetchSingleFeed(bingKoUrl),
-        fetchNaverNews(companyName, naverClientId, naverClientSecret)
-      ]);
+        fetchSingleFeed(bingKoUrl)
+      ];
+      if (naverClientId && naverClientSecret) {
+        feedPromises.push(fetchNaverNews(companyName, naverClientId, naverClientSecret, true));
+      }
+      const [koItems, bingItems, naverItems = []] = await Promise.all(feedPromises);
+
       const seen = new Set();
       const mergedItems = [];
-      for (const item of [...koItems, ...naverItems, ...bingItems]) {
+      for (const item of [...koItems, ...(naverItems || []), ...bingItems]) {
         if (mergedItems.length >= 12) break;
         const key = item.title.slice(0, 50).toLowerCase();
         if (!seen.has(key)) { seen.add(key); mergedItems.push(item); }

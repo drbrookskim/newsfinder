@@ -32,10 +32,10 @@
             </div>`}).join("");else{const a=document.getElementById("intel-reports-block");a&&(a.style.display="none")}if(o&&(o.style.display="grid"),e.sectorInfo&&e.sectorInfo.peers&&e.sectorInfo.peers.length>0&&n){const a=document.getElementById("sector-peers-grid");if(a){const d=[...e.sectorInfo.peers].sort((u,r)=>(parseFloat(r.marketValue)||0)-(parseFloat(u.marketValue)||0)),c=e.ticker||"";a.style.gridTemplateColumns=`repeat(${d.length}, 1fr)`,a.innerHTML=d.map((u,r)=>{const m=parseFloat(u.changePercent)||0,g=u.changeDir==="상승"?"up":u.changeDir==="하락"?"down":"",h=m>0?"▲ +":m<0?"▼ ":"",f=r===0;return`
             <div class="peer-card ${c.startsWith(u.code)||u.code.startsWith(c)?"is-current":""}">
               <div class="peer-ticker-row">
-                <span class="peer-ticker">${u.code}</span>
+                <span class="peer-ticker" title="${u.name}">${u.name}</span>
                 <span class="peer-change ${g}">${h}${Math.abs(m).toFixed(2)}%</span>
               </div>
-              <div class="peer-name-sub" title="${u.name}">${u.name}</div>
+              <div class="peer-name-sub">${u.code}</div>
               <div class="peer-rank-row">
                 <span class="peer-rank">업종 ${r+1}위</span>
                 ${f?'<span class="peer-leader-label">대장주</span>':""}
@@ -43,10 +43,10 @@
             </div>`}).join(""),n.style.display="block",fe(e.sectorInfo.peers,e.sectorInfo.industryCode)}}}else if(e.type==="US"){o&&o.classList.add("is-us");const i=document.getElementById("key-metrics-grid");if(i){const d=[{label:"거래소",value:e.exchange},{label:"통화",value:e.currency},{label:"시가총액",value:e.marketCap},{label:"섹터",value:e.sector},{label:"산업군",value:e.industry},{label:"52주 최고",value:e.high52?`$${Number(e.high52).toFixed(2)}`:null},{label:"52주 최저",value:e.low52?`$${Number(e.low52).toFixed(2)}`:null},{label:"거래량",value:e.volume?Number(e.volume).toLocaleString("en-US"):null}].filter(c=>c.value);i.innerHTML=d.map(c=>`<div class="metric-item"><span class="metric-label">${c.label}</span><span class="metric-value">${c.value}</span></div>`).join("")}const l=document.querySelector(".intel-investor");l&&(l.style.display="none");const p=document.querySelector(".intel-consensus");p&&(p.style.display="none");const a=document.getElementById("intel-reports-block");if(a&&(a.style.display="none"),o&&(o.style.display="grid"),e.sectorInfo&&e.sectorInfo.peers&&e.sectorInfo.peers.length>0&&n){const d=document.getElementById("sector-peers-grid");if(d){const c=r=>{if(!r)return 0;const m=parseFloat(r);return isNaN(m)?0:r.toUpperCase().endsWith("T")?m*1e3:r.toUpperCase().endsWith("B")?m:r.toUpperCase().endsWith("M")?m/1e3:m},u=[...e.sectorInfo.peers].sort((r,m)=>c(m.marketValue)-c(r.marketValue));d.style.gridTemplateColumns=`repeat(${u.length}, 1fr)`,d.innerHTML=u.map((r,m)=>{const g=parseFloat(r.changePercent),h=!isNaN(g),f=r.changeDir==="상승"?"up":r.changeDir==="하락"?"down":"",C=h?g>0?"▲ +":g<0?"▼ ":"":"",P=h?`${Math.abs(g).toFixed(2)}%`:"—",B=m===0;return`
             <div class="peer-card ${r.code.toUpperCase()===(e.ticker||"").toUpperCase()?"is-current":""}">
               <div class="peer-ticker-row">
-                <span class="peer-ticker">${r.code}</span>
+                <span class="peer-ticker" title="${r.name}">${r.name}</span>
                 <span class="peer-change ${f}">${C}${P}</span>
               </div>
-              <div class="peer-name-sub" title="${r.name}">${r.name}</div>
+              <div class="peer-name-sub">${r.code}</div>
               <div class="peer-rank-row">
                 <span class="peer-rank">업종 ${m+1}위</span>
                 ${B?'<span class="peer-leader-label">대장주</span>':""}

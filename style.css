@@ -457,6 +457,9 @@ ul, ol {
   margin-bottom: var(--lh);
   font-weight: 600;
 }
+.markdown-body h2 {
+  font-size: 24px;
+}
 .markdown-body p {
   margin-bottom: var(--lh);
 }

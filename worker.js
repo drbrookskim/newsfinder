@@ -128,16 +128,16 @@ export default {
     const threeCMessages = [
       {
         role: "system",
-        content: "Respond ONLY with valid JSON. No markdown, no explanation."
+        content: 'You are a JSON-only response bot. Output ONLY a valid JSON object with no other text, no markdown, no backticks, no explanation before or after.'
       },
       {
         role: "user",
-        content: `3C 분석(Customer/Company/Competitor) JSON:\n종목: ${companyName}\n뉴스: ${rssNewsText.slice(0, 600)}\n\n{"customer":{"label":"Customer","signal":"1문장","bullets":["항목1","항목2"]},"company":{"label":"Company","signal":"1문장","bullets":["항목1","항목2"]},"competitor":{"label":"Competitor","signal":"1문장","bullets":["항목1","항목2"]}}`
+        content: `Output exactly this JSON structure filled in for the stock "${companyName}" based on this news (in Korean):\n${rssNewsText.slice(0, 500)}\n\nRequired output (replace values only, keep all keys):\n{"customer":{"label":"Customer (고객)","signal":"<one sentence about customer/market impact>","bullets":["<point 1>","<point 2>","<point 3>"]},"company":{"label":"Company (자사)","signal":"<one sentence about company fundamentals>","bullets":["<point 1>","<point 2>","<point 3>"]},"competitor":{"label":"Competitor (경쟁사)","signal":"<one sentence about competitive landscape>","bullets":["<point 1>","<point 2>","<point 3>"]}}`
       }
     ];
 
-    // ── SSE Streaming: 3C (8B fast) + insight stream (70B) start in parallel ──
-    const threeCPromise = globalEnv.AI.run(model8b, { messages: threeCMessages, max_tokens: 350 });
+    // ── SSE Streaming: 3C (70B reliable) + insight stream (70B) start in parallel ──
+    const threeCPromise = globalEnv.AI.run(model70b, { messages: threeCMessages, max_tokens: 450 });
     const insightStream = await globalEnv.AI.run(model70b, { messages: mainMessages, max_tokens: 600, stream: true });
 
     const encoder = new TextEncoder();
@@ -174,19 +174,25 @@ export default {
         try {
           const cfThreeCResponse = await threeCPromise;
           let rawThreeC = cfThreeCResponse.response || cfThreeCResponse;
-          if (typeof rawThreeC === 'object' && rawThreeC !== null) {
-            threeC = rawThreeC;
-          } else {
-            rawThreeC = String(rawThreeC).replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
-            threeC = JSON.parse(rawThreeC);
-          }
+          threeC = extractJSON(rawThreeC);
         } catch (e) {
-          console.warn('[3C] Parse failed, retrying:', e.message);
+          console.warn('[3C] Parse failed, retrying with simplified prompt:', e.message);
           try {
-            const retry = await globalEnv.AI.run(model70b, { messages: threeCMessages, max_tokens: 350 });
-            let raw = String(retry.response || retry).replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
-            threeC = JSON.parse(raw);
-          } catch { threeC = null; }
+            const simpleMessages = [
+              { role: 'system', content: 'Output ONLY valid JSON, nothing else.' },
+              { role: 'user', content: `JSON for stock "${companyName}" 3C analysis:\n{"customer":{"label":"Customer","signal":"market demand signal","bullets":["point1","point2","point3"]},"company":{"label":"Company","signal":"company strength","bullets":["point1","point2","point3"]},"competitor":{"label":"Competitor","signal":"competitive risk","bullets":["point1","point2","point3"]}}` }
+            ];
+            const retry = await globalEnv.AI.run(model70b, { messages: simpleMessages, max_tokens: 450 });
+            threeC = extractJSON(retry.response || retry);
+          } catch (retryErr) {
+            console.warn('[3C] Retry also failed:', retryErr.message);
+          }
+        }
+
+        // Server-side fallback: build 3C from news headlines if AI failed
+        if (!threeC || !threeC.customer || !threeC.company || !threeC.competitor) {
+          console.warn('[3C] Using server-side fallback 3C generator');
+          threeC = buildServerFallbackThreeC(companyName, naverNewsItems, sources);
         }
 
         await sendEvent({
@@ -226,6 +232,96 @@ export default {
     return createResponse({ error: 'Not Found' }, 404);
   }
 };
+
+// ── JSON Extraction Helper ────────────────────────────────────────────────────
+// Aggressively tries to extract valid JSON from an LLM response that may contain
+// markdown code fences, preamble text, postamble text, or other noise.
+function extractJSON(raw) {
+  if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) return raw;
+  let str = String(raw);
+
+  // 1) Strip markdown code fences (```json ... ``` or ``` ... ```)
+  str = str.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+
+  // 2) Try parsing the whole thing first
+  try { return JSON.parse(str); } catch {}
+
+  // 3) Find the first { and last } and try that range
+  const start = str.indexOf('{');
+  const end = str.lastIndexOf('}');
+  if (start !== -1 && end > start) {
+    try { return JSON.parse(str.slice(start, end + 1)); } catch {}
+  }
+
+  // 4) Try stripping any trailing text after the closing brace
+  if (start !== -1) {
+    // Find matching brace
+    let depth = 0;
+    let closeIdx = -1;
+    for (let i = start; i < str.length; i++) {
+      if (str[i] === '{') depth++;
+      else if (str[i] === '}') {
+        depth--;
+        if (depth === 0) { closeIdx = i; break; }
+      }
+    }
+    if (closeIdx !== -1) {
+      try { return JSON.parse(str.slice(start, closeIdx + 1)); } catch {}
+    }
+  }
+
+  throw new Error('Could not extract JSON from: ' + str.slice(0, 100));
+}
+
+// ── Server-Side Fallback 3C Generator ────────────────────────────────────────
+// Generates a meaningful 3C analysis from news headlines when AI parsing fails.
+function buildServerFallbackThreeC(companyName, newsItems = [], sources = []) {
+  const allItems = [...(newsItems || []), ...(sources || [])];
+  const h1 = allItems?.[0]?.title || `${companyName} 최신 동향`;
+  const h2 = allItems?.[1]?.title || `${companyName} 시장 현황`;
+  const h3 = allItems?.[2]?.title || `${companyName} 경쟁 구도`;
+
+  // Simple keyword sentiment
+  const positiveWords = ['상승', '호재', '흑자', '성장', '최고', '이익', '급증', '계약', '인수', '수주', '돌파', '상향', '회복'];
+  const negativeWords = ['하락', '우려', '적자', '둔화', '감소', '소송', '분쟁', '해지', '감원', '리스크', '급락', '하향'];
+  let pos = 0, neg = 0;
+  allItems.forEach(item => {
+    const t = (item.title || '').toLowerCase();
+    positiveWords.forEach(w => { if (t.includes(w)) pos++; });
+    negativeWords.forEach(w => { if (t.includes(w)) neg++; });
+  });
+  const signal = pos > neg ? '긍정적 시그널' : neg > pos ? '우려 요인 존재' : '중립적 시장 상황';
+
+  return {
+    customer: {
+      label: 'Customer (고객/시장)',
+      signal: `시장 수요: ${signal}`,
+      bullets: [
+        `"${h1}" 관련 고객 반응 및 시장 수요 동향 주목`,
+        '소비자 니즈 변화에 따른 제품·서비스 업데이트 방향성 주시 필요',
+        '국내외 핵심 고객층의 구매 패턴 및 계약 갱신 사이클이 단기 매출 변수'
+      ]
+    },
+    company: {
+      label: 'Company (자사)',
+      signal: `기업 펀더멘탈: ${h2.slice(0, 45)}...`,
+      bullets: [
+        `"${h3}" 등 최신 보도 기반 핵심 사업 지표 점검 필요`,
+        '운영 효율화 및 고마진 제품 믹스 전환이 수익성 방향성 결정',
+        '중장기 R&D 투자 및 신사업 실행 속도가 경쟁력 좌우'
+      ]
+    },
+    competitor: {
+      label: 'Competitor (경쟁사)',
+      signal: '업계 경쟁 구도 모니터링 중',
+      bullets: [
+        '동종 업계 기술 격차 및 가격 전략 변화 추이 주시',
+        '시장 점유율 확대를 위한 파트너십·에코시스템 전략 차별화',
+        '글로벌 공급망 경쟁력 및 대체 공급원 출현 가능성 분석 중요'
+      ]
+    }
+  };
+}
 
 async function fetchSingleFeed(url) {
   try {

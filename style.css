@@ -13,9 +13,9 @@
   --maxw: 1200px;
   --c-paper: #ffffff;
   --c-ink: #111111;
-  --c-accent: #e3000f; /* Canonical Red */
+  --c-accent: #111111; /* Changed red to black */
   --c-ink-light: #555555;
-  --c-grid: rgba(227, 0, 15, 0.15);
+  --c-grid: rgba(17, 17, 17, 0.15);
   
   --font-family: 'Space Grotesk', 'Noto Sans KR', sans-serif;
 }
@@ -97,7 +97,7 @@ body.show-grid .guides {
 
 .guide-col {
   height: 100%;
-  background-color: rgba(227, 0, 15, 0.05);
+  background-color: rgba(17, 17, 17, 0.05);
   border-left: 1px solid var(--c-grid);
   border-right: 1px solid var(--c-grid);
 }
@@ -1125,7 +1125,7 @@ body { padding-bottom: 56px; }
 }
 .peer-card.is-current {
   border-top-color: var(--c-accent);
-  background: rgba(239, 68, 68, 0.025);
+  background: rgba(17, 17, 17, 0.035);
 }
 .peer-ticker-row {
   display: flex;
@@ -1168,13 +1168,13 @@ body { padding-bottom: 56px; }
   font-size: 11px;
   font-weight: 700;
   padding: 2px 5px;
-  background: var(--c-ink);
+  background: #ef4444;
   color: #fff;
   border-radius: 2px;
   text-transform: uppercase;
 }
 .peer-card.is-current .peer-leader-label {
-  background: var(--c-accent);
+  background: #ef4444;
 }
 .peer-change {
   font-size: 14px;

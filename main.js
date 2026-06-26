@@ -822,10 +822,10 @@ function renderMarketIntelligence(intel, currentPrice, currency) {
           return `
             <div class="peer-card ${isCurrent ? 'is-current' : ''}">
               <div class="peer-ticker-row">
-                <span class="peer-ticker">${p.code}</span>
+                <span class="peer-ticker" title="${p.name}">${p.name}</span>
                 <span class="peer-change ${dir}">${sign}${Math.abs(pct).toFixed(2)}%</span>
               </div>
-              <div class="peer-name-sub" title="${p.name}">${p.name}</div>
+              <div class="peer-name-sub">${p.code}</div>
               <div class="peer-rank-row">
                 <span class="peer-rank">업종 ${i + 1}위</span>
                 ${isLeader ? '<span class="peer-leader-label">대장주</span>' : ''}
@@ -896,10 +896,10 @@ function renderMarketIntelligence(intel, currentPrice, currency) {
           return `
             <div class="peer-card ${isCurrent ? 'is-current' : ''}">
               <div class="peer-ticker-row">
-                <span class="peer-ticker">${p.code}</span>
+                <span class="peer-ticker" title="${p.name}">${p.name}</span>
                 <span class="peer-change ${dir}">${sign}${pctStr}</span>
               </div>
-              <div class="peer-name-sub" title="${p.name}">${p.name}</div>
+              <div class="peer-name-sub">${p.code}</div>
               <div class="peer-rank-row">
                 <span class="peer-rank">업종 ${i + 1}위</span>
                 ${isLeader ? '<span class="peer-leader-label">대장주</span>' : ''}

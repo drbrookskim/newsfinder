@@ -116,7 +116,7 @@ async function fetchAndDisplayStockPrice(companyName) {
 
     // Render Market Intelligence panel if data available
     if (data.marketIntel) {
-      renderMarketIntelligence(data.marketIntel, data.price, data.currency);
+      renderMarketIntelligence(data.marketIntel, data.price, data.currency, data);
     }
   } catch (e) {
     console.warn('[Stock Price] fetch failed:', e.message);
@@ -708,7 +708,7 @@ function resetMarketIntelPanel() {
   }
 }
 
-function renderMarketIntelligence(intel, currentPrice, currency) {
+function renderMarketIntelligence(intel, currentPrice, currency, rawPriceData) {
   if (!intel) return;
   const band = document.getElementById('market-intel-band');
   const peersBand = document.getElementById('sector-peers-band');
@@ -744,16 +744,34 @@ function renderMarketIntelligence(intel, currentPrice, currency) {
 
     // 2. Key Metrics
     const metricsGrid = document.getElementById('key-metrics-grid');
-    if (metricsGrid && intel.keyIndicators) {
-      const ki = intel.keyIndicators;
-      const metrics = [
-        { label: '시가총액', value: ki.marketCap },
-        { label: 'PER', value: ki.per },
-        { label: 'PBR', value: ki.pbr },
-        { label: '외인보유율', value: ki.foreignRate },
-        { label: '52주최고', value: ki.high52 ? Number(String(ki.high52).replace(/,/g,'')).toLocaleString('ko-KR') : null },
-        { label: '52주최저', value: ki.low52 ? Number(String(ki.low52).replace(/,/g,'')).toLocaleString('ko-KR') : null },
-      ].filter(m => m.value);
+    if (metricsGrid) {
+      let metrics = [];
+      if (intel.keyIndicators) {
+        const ki = intel.keyIndicators;
+        metrics = [
+          { label: '시가총액', value: ki.marketCap },
+          { label: 'PER', value: ki.per },
+          { label: 'PBR', value: ki.pbr },
+          { label: '외인보유율', value: ki.foreignRate },
+          { label: '52주최고', value: ki.high52 ? Number(String(ki.high52).replace(/,/g,'')).toLocaleString('ko-KR') : null },
+          { label: '52주최저', value: ki.low52 ? Number(String(ki.low52).replace(/,/g,'')).toLocaleString('ko-KR') : null },
+        ].filter(m => m.value);
+      }
+      
+      // Fallback: if we have no keyIndicators or fewer than 2 indicators (common for ETFs, newly listed stocks)
+      if (metrics.length < 2 && rawPriceData) {
+        const sign = (rawPriceData.change || 0) > 0 ? '▲ +' : (rawPriceData.change || 0) < 0 ? '▼ ' : '';
+        const changeVal = rawPriceData.change !== undefined ? `${sign}${Math.abs(rawPriceData.change).toLocaleString('ko-KR')}원` : '—';
+        const pctVal = rawPriceData.changePercent !== undefined ? `(${rawPriceData.changePercent > 0 ? '+' : ''}${rawPriceData.changePercent.toFixed(2)}%)` : '';
+        
+        metrics = [
+          { label: '현재가', value: rawPriceData.price ? `${rawPriceData.price.toLocaleString('ko-KR')}원` : '—' },
+          { label: '전일 종가', value: rawPriceData.previousClose ? `${rawPriceData.previousClose.toLocaleString('ko-KR')}원` : '—' },
+          { label: '전일 대비', value: `${changeVal} ${pctVal}` },
+          { label: '거래소', value: rawPriceData.exchange || 'KRX' }
+        ];
+      }
+      
       metricsGrid.innerHTML = metrics.map(m =>
         `<div class="metric-item"><span class="metric-label">${m.label}</span><span class="metric-value">${m.value}</span></div>`
       ).join('');
@@ -779,7 +797,7 @@ function renderMarketIntelligence(intel, currentPrice, currency) {
           ${targetFmt ? `<div class="consensus-target">목표주가 <strong>${targetFmt}원</strong>${upside}</div>` : ''}
         `;
       } else {
-        consensusEl.innerHTML = '<p style="font-size:13px;color:var(--c-ink-light)">데이터 없음</p>';
+        consensusEl.innerHTML = '<p style="font-size:13px;color:var(--c-ink-light)">데이터 없음<br><span style="font-size:11px;opacity:0.8;">(AI 뉴스 센티멘트 분석 대기중)</span></p>';
       }
     }
 
@@ -963,6 +981,42 @@ function updateImpactBadge(impact) {
   } else {
     marketImpactBadge.classList.add('impact-neutral');
     marketImpactBadge.textContent = '중립적 (Neutral)';
+  }
+  
+  // Update Consensus block with AI Score if it's empty/missing
+  updateConsensusWithAIScore(impact);
+}
+
+function updateConsensusWithAIScore(impact) {
+  const consensusEl = document.getElementById('consensus-content');
+  if (!consensusEl) return;
+  
+  // Only overwrite if it contains '데이터 없음' or '대기중'
+  if (consensusEl.innerHTML.includes('데이터 없음') || consensusEl.innerHTML.includes('대기중') || consensusEl.innerHTML.trim() === '') {
+    let mean = 3.0;
+    let label = '중립';
+    let labelClass = 'neutral';
+    let desc = '실시간 AI 뉴스 감성 분석';
+    
+    if (impact === 'positive') {
+      mean = 4.5;
+      label = '적극매수 (AI)';
+      labelClass = 'buy';
+    } else if (impact === 'concern') {
+      mean = 1.5;
+      label = '우려 (AI)';
+      labelClass = 'sell';
+    } else {
+      mean = 3.0;
+      label = '중립 (AI)';
+      labelClass = 'neutral';
+    }
+    
+    consensusEl.innerHTML = `
+      <div class="consensus-score">${mean.toFixed(1)}<span style="font-size:16px;color:var(--c-ink-light)">/5</span></div>
+      <div class="consensus-label ${labelClass}">${label}</div>
+      <div class="consensus-target" style="font-size:11px;color:var(--c-ink-light);margin-top:4px;">${desc}</div>
+    `;
   }
 }
 

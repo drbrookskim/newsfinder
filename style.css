@@ -217,7 +217,7 @@ ul, ol {
 
 .search-submit {
   grid-column: 9 / 11;
-  background: var(--c-accent);
+  background: #ef4444;
   color: var(--c-paper);
   border: none;
   border-radius: 9999px;

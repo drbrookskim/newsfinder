@@ -313,6 +313,9 @@ async function performAnalysis(companyName) {
       insightMarkdown.innerHTML = '<div class="streaming-cursor">▋</div>';
       switchPanel('results');
       switchAnalysisTab('ai');
+      
+      // Load price and market intel in parallel while AI is streaming
+      fetchAndDisplayStockPrice(companyName);
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -394,7 +397,6 @@ async function performAnalysis(companyName) {
               if (extractedSummary) addSummaryToMarquee(companyName, extractedSummary, impact);
 
               saveToHistory(companyName);
-              fetchAndDisplayStockPrice(companyName);
 
             } else if (event.type === 'error') {
               throw new Error(event.message || '스트리밍 오류');

@@ -99,11 +99,22 @@ function applyLanguage(lang) {
     }
   });
 
-  // Update toggle button labels
-  const labelEl = document.getElementById('lang-label');
-  const otherEl = document.getElementById('lang-other');
-  if (labelEl) labelEl.textContent = lang === 'ko' ? 'KO' : 'EN';
-  if (otherEl) otherEl.textContent = lang === 'ko' ? 'EN' : 'KO';
+  // Update toggle button state
+  const toggleBtn = document.getElementById('lang-toggle-btn');
+  const koLabel = document.getElementById('lang-label-ko');
+  const enLabel = document.getElementById('lang-label-en');
+
+  if (toggleBtn) {
+    if (lang === 'en') {
+      toggleBtn.classList.add('lang-en');
+      if (koLabel) { koLabel.classList.remove('lang-active'); koLabel.classList.add('lang-inactive'); }
+      if (enLabel) { enLabel.classList.remove('lang-inactive'); enLabel.classList.add('lang-active'); }
+    } else {
+      toggleBtn.classList.remove('lang-en');
+      if (koLabel) { koLabel.classList.remove('lang-inactive'); koLabel.classList.add('lang-active'); }
+      if (enLabel) { enLabel.classList.remove('lang-active'); enLabel.classList.add('lang-inactive'); }
+    }
+  }
 }
 
 

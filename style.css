@@ -191,44 +191,65 @@ ul, ol {
   white-space: nowrap;
 }
 
-/* Language Toggle Button */
+/* Language Toggle Switch */
 .lang-toggle-btn {
   display: flex;
   align-items: center;
+  gap: 7px;
   background: none;
-  border: 1.5px solid var(--c-ink-light);
-  border-radius: 4px;
-  padding: 2px 8px;
+  border: none;
+  padding: 0;
   cursor: pointer;
   font-family: var(--font-family);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
   color: var(--c-ink);
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
-  line-height: 1.8;
 }
-.lang-toggle-btn:hover {
+.lang-toggle-btn:hover .lang-switch-track {
   border-color: var(--c-ink);
-  background: var(--c-ink);
-  color: var(--c-bg);
 }
-.lang-toggle-inner {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+.lang-label-side {
+  min-width: 20px;
+  text-align: center;
+  transition: color 0.22s, opacity 0.22s;
 }
-.lang-active {
+.lang-label-side.lang-active {
   color: var(--c-accent);
   font-weight: 700;
+  opacity: 1;
 }
-.lang-divider {
-  color: var(--c-ink-light);
-  font-weight: 300;
-}
-.lang-inactive {
+.lang-label-side.lang-inactive {
   color: var(--c-ink-light);
   font-weight: 400;
+  opacity: 0.5;
+}
+/* The pill track */
+.lang-switch-track {
+  position: relative;
+  width: 36px;
+  height: 18px;
+  border-radius: 9px;
+  border: 1.5px solid var(--c-ink-light);
+  background: transparent;
+  transition: border-color 0.22s, background 0.22s;
+  flex-shrink: 0;
+}
+/* The sliding thumb */
+.lang-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--c-accent);
+  transition: transform 0.22s cubic-bezier(.4,0,.2,1), background 0.22s;
+}
+/* When lang is EN, thumb slides to right */
+.lang-toggle-btn.lang-en .lang-switch-thumb {
+  transform: translateX(18px);
+  background: var(--c-ink);
 }
 
 /* Forms */
@@ -260,6 +281,7 @@ ul, ol {
 .search-input::placeholder {
   color: var(--c-ink-light);
   opacity: 0.5;
+  font-size: 20px;
 }
 
 .search-submit {

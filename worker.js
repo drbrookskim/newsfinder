@@ -58,7 +58,7 @@ export default {
     }
 
     if (url.pathname === '/api/analyze' && request.method === 'POST') {
-  const { companyName } = await request.json();
+  const { companyName, lang = 'ko' } = await request.json();
 
   if (!companyName || typeof companyName !== 'string' || !companyName.trim()) {
     return createResponse({ error: 'companyName은 필수 항목이며 유효한 문자열이어야 합니다.' });
@@ -114,16 +114,38 @@ export default {
     const isTechCompany = ['tech', 'soft', 'cloud', 'saas', 'data', 'git', 'dev'].some(k => industryLower.includes(k));
     const industryHint = isTechCompany ? '\n[업종 지침] 소프트웨어/SaaS/테크 기업. ARR, NRR, 플랫폼 성장을 중심으로 서술.' : '';
 
+    const systemPromptEn = `You are a financial AI agent of 'Signnith' stock platform. Analyze the provided news in Markdown format.
+IMPORTANT: You MUST output the ENTIRE response strictly in English.
+Translate the headings to English as follows:
+## 1. Key News Summary
+## 2. Market Impact Analysis
+(Choose one: 'Positive'|'Neutral'|'Concerning')
+## 3. Investor Insights`;
+
+    const systemPromptKo = `너는 주식 분석 플랫폼 'Signnith'의 금융 전문 AI 에이전트야. 제공된 뉴스만을 바탕으로 마크다운으로 분석하라.\n## 1. 핵심 뉴스 요약\n## 2. 시장 영향 분석\n('긍정적'|'중립적'|'우려됨' 중 택1)\n## 3. 투자자 인사이트`;
+
     const mainMessages = [
       {
         role: "system",
-        content: `너는 주식 분석 플랫폼 'Signnith'의 금융 전문 AI 에이전트야. 제공된 뉴스만을 바탕으로 마크다운으로 분석하라.\n## 1. 핵심 뉴스 요약\n## 2. 시장 영향 분석\n('긍정적'|'중립적'|'우려됨' 중 택1)\n## 3. 투자자 인사이트`
+        content: lang === 'en' ? systemPromptEn : systemPromptKo
       },
       {
         role: "user",
         content: `오늘(${formattedDate}), "${companyName}" 최신 뉴스:\n\n${rssNewsText}\n\n위 뉴스 기반으로 마크다운 분석 리포트를 작성해줘.${industryHint}`
       }
     ];
+
+    const threeCPromptEn = `Output exactly this JSON structure filled in for the stock "${companyName}" based on this news:
+${rssNewsText.slice(0, 500)}
+
+Required output (replace values only, keep all keys):
+{"customer":{"label":"Customer","signal":"<one sentence about customer/market impact in English>","bullets":["<point 1 in English>","<point 2 in English>","<point 3 in English>"]},"company":{"label":"Company","signal":"<one sentence about company fundamentals in English>","bullets":["<point 1 in English>","<point 2 in English>","<point 3 in English>"]},"competitor":{"label":"Competitor","signal":"<one sentence about competitive landscape in English>","bullets":["<point 1 in English>","<point 2 in English>","<point 3 in English>"]}}`;
+
+    const threeCPromptKo = `Output exactly this JSON structure filled in for the stock "${companyName}" based on this news (in Korean):
+${rssNewsText.slice(0, 500)}
+
+Required output (replace values only, keep all keys):
+{"customer":{"label":"Customer (고객)","signal":"<one sentence about customer/market impact>","bullets":["<point 1>","<point 2>","<point 3>"]},"company":{"label":"Company (자사)","signal":"<one sentence about company fundamentals>","bullets":["<point 1>","<point 2>","<point 3>"]},"competitor":{"label":"Competitor (경쟁사)","signal":"<one sentence about competitive landscape>","bullets":["<point 1>","<point 2>","<point 3>"]}}`;
 
     const threeCMessages = [
       {
@@ -132,7 +154,7 @@ export default {
       },
       {
         role: "user",
-        content: `Output exactly this JSON structure filled in for the stock "${companyName}" based on this news (in Korean):\n${rssNewsText.slice(0, 500)}\n\nRequired output (replace values only, keep all keys):\n{"customer":{"label":"Customer (고객)","signal":"<one sentence about customer/market impact>","bullets":["<point 1>","<point 2>","<point 3>"]},"company":{"label":"Company (자사)","signal":"<one sentence about company fundamentals>","bullets":["<point 1>","<point 2>","<point 3>"]},"competitor":{"label":"Competitor (경쟁사)","signal":"<one sentence about competitive landscape>","bullets":["<point 1>","<point 2>","<point 3>"]}}`
+        content: lang === 'en' ? threeCPromptEn : threeCPromptKo
       }
     ];
 
@@ -192,7 +214,7 @@ export default {
         // Server-side fallback: build 3C from news headlines if AI failed
         if (!threeC || !threeC.customer || !threeC.company || !threeC.competitor) {
           console.warn('[3C] Using server-side fallback 3C generator');
-          threeC = buildServerFallbackThreeC(companyName, naverNewsItems, sources);
+          threeC = buildServerFallbackThreeC(companyName, naverNewsItems, sources, lang);
         }
 
         await sendEvent({
@@ -275,8 +297,45 @@ function extractJSON(raw) {
 
 // ── Server-Side Fallback 3C Generator ────────────────────────────────────────
 // Generates a meaningful 3C analysis from news headlines when AI parsing fails.
-function buildServerFallbackThreeC(companyName, newsItems = [], sources = []) {
+function buildServerFallbackThreeC(companyName, newsItems = [], sources = [], lang = 'ko') {
   const allItems = [...(newsItems || []), ...(sources || [])];
+  
+  if (lang === 'en') {
+    const h1 = allItems?.[0]?.title || `Latest trends for ${companyName}`;
+    const h2 = allItems?.[1]?.title || `Market status for ${companyName}`;
+    const h3 = allItems?.[2]?.title || `Competitive landscape for ${companyName}`;
+    
+    return {
+      customer: {
+        label: 'Customer',
+        signal: 'Monitoring market demand and consumer reactions.',
+        bullets: [
+          `Monitor customer response to "${h1}"`,
+          'Watch for shifts in consumer needs and product updates',
+          'Purchasing patterns of key demographics affect short-term revenue'
+        ]
+      },
+      company: {
+        label: 'Company',
+        signal: `Company fundamentals: ${h2.slice(0, 45)}...`,
+        bullets: [
+          `Review core business metrics based on "${h3}"`,
+          'Operational efficiency and high-margin product mix determine profitability',
+          'Long-term R&D investment and execution speed dictate competitiveness'
+        ]
+      },
+      competitor: {
+        label: 'Competitor',
+        signal: 'Monitoring industry competitive landscape.',
+        bullets: [
+          'Watch technological gaps and pricing strategies among peers',
+          'Differentiate partnership and ecosystem strategies to expand market share',
+          'Analyze global supply chain competitiveness and alternative sources'
+        ]
+      }
+    };
+  }
+
   const h1 = allItems?.[0]?.title || `${companyName} 최신 동향`;
   const h2 = allItems?.[1]?.title || `${companyName} 시장 현황`;
   const h3 = allItems?.[2]?.title || `${companyName} 경쟁 구도`;

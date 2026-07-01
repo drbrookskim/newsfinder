@@ -43,6 +43,12 @@ const i18n = {
     'error.title': '분석에 실패하였습니다',
     'error.desc': '일시적인 네트워크 장애나 설정 오류로 요청을 수행하지 못했습니다.',
     'error.retry': '다시 시도하기',
+    'loading.search.title': '실시간 뉴스 검색 중...',
+    'loading.search.desc': '구글 뉴스 검색 API를 통해 최신 48시간 이내 소식들을 긁어오고 있습니다.',
+    'loading.analyze.title': '금융 전문 AI 뉴스 분석 중...',
+    'loading.analyze.desc': 'Llama 3 모델이 관련 뉴스를 기반으로 시장 영향 및 리스크를 검토하고 있습니다.',
+    'loading.render.title': '인사이트 도출 및 정리 중...',
+    'loading.render.desc': '분석된 데이터를 마크다운 포맷으로 가공하여 대시보드 템플릿에 맞추는 중입니다.',
   },
   en: {
     'nav.history': 'Search History',
@@ -75,6 +81,12 @@ const i18n = {
     'error.title': 'Analysis Failed',
     'error.desc': 'The request could not be completed due to a temporary network issue or configuration error.',
     'error.retry': 'Retry',
+    'loading.search.title': 'Searching live news...',
+    'loading.search.desc': 'Fetching the latest news within 48 hours via Google News Search API.',
+    'loading.analyze.title': 'AI financial news analysis in progress...',
+    'loading.analyze.desc': 'Llama 3 model is reviewing market impact and risks based on relevant news.',
+    'loading.render.title': 'Deriving insights & organizing...',
+    'loading.render.desc': 'Processing analyzed data into Markdown format to fit the dashboard template.',
   },
 };
 
@@ -413,7 +425,7 @@ async function performAnalysis(companyName) {
     const response = await fetch(`${API_BASE}/api/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ companyName }),
+      body: JSON.stringify({ companyName, lang: currentLang }),
     });
 
     clearTimeout(stepTimeout1);
@@ -586,19 +598,19 @@ function updateLoadingStep(step) {
 
   if (step === 'search') {
     if (stepSearch) stepSearch.classList.add('active');
-    loadingTitle.textContent = '실시간 뉴스 검색 중...';
-    loadingDesc.textContent = '구글 뉴스 검색 API를 통해 최신 48시간 이내 소식들을 긁어오고 있습니다.';
+    loadingTitle.textContent = i18n[currentLang]['loading.search.title'];
+    loadingDesc.textContent = i18n[currentLang]['loading.search.desc'];
   } else if (step === 'analyze') {
     if (stepSearch) stepSearch.classList.add('completed');
     if (stepAnalyze) stepAnalyze.classList.add('active');
-    loadingTitle.textContent = '금융 전문 AI 뉴스 분석 중...';
-    loadingDesc.textContent = 'Llama 3 모델이 관련 뉴스를 기반으로 시장 영향 및 리스크를 검토하고 있습니다.';
+    loadingTitle.textContent = i18n[currentLang]['loading.analyze.title'];
+    loadingDesc.textContent = i18n[currentLang]['loading.analyze.desc'];
   } else if (step === 'render') {
     if (stepSearch) stepSearch.classList.add('completed');
     if (stepAnalyze) stepAnalyze.classList.add('completed');
     if (stepRender) stepRender.classList.add('active');
-    loadingTitle.textContent = '인사이트 도출 및 정리 중...';
-    loadingDesc.textContent = '분석된 데이터를 마크다운 포맷으로 가공하여 대시보드 템플릿에 맞추는 중입니다.';
+    loadingTitle.textContent = i18n[currentLang]['loading.render.title'];
+    loadingDesc.textContent = i18n[currentLang]['loading.render.desc'];
   }
 }
 
@@ -1250,11 +1262,12 @@ function renderSources(sources) {
 
   if (uniqueSources.length === 0) return;
 
-  // Find the heading that contains "핵심 뉴스 요약"
+  // Find the heading that contains "핵심 뉴스 요약" or "Key News Summary"
   const headings = insightMarkdown.querySelectorAll('h1, h2, h3, h4');
   let targetHeading = null;
   for (const h of headings) {
-    if (h.textContent.includes('핵심 뉴스') || h.textContent.includes('요약')) {
+    const text = h.textContent.toLowerCase();
+    if (text.includes('핵심 뉴스') || text.includes('요약') || text.includes('key news') || text.includes('summary')) {
       targetHeading = h;
       break;
     }

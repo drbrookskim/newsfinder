@@ -7,6 +7,7 @@
 const STORAGE_KEY = 'signnith_news_finder_history';
 const LANG_STORAGE_KEY = 'signnith_news_finder_lang';
 let searchHistory = [];
+let currentAnalyzedCompany = '';
 
 // ── i18n ─────────────────────────────────────────────────────────────────────
 let currentLang = localStorage.getItem(LANG_STORAGE_KEY) || 'ko';
@@ -270,7 +271,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const langToggleBtn = document.getElementById('lang-toggle-btn');
   if (langToggleBtn) {
     langToggleBtn.addEventListener('click', () => {
-      applyLanguage(currentLang === 'ko' ? 'en' : 'ko');
+      const newLang = currentLang === 'ko' ? 'en' : 'ko';
+      applyLanguage(newLang);
+      
+      if (resultsPanel && resultsPanel.classList.contains('active') && currentAnalyzedCompany) {
+        performAnalysis(currentAnalyzedCompany);
+      }
     });
   }
 
@@ -411,6 +417,8 @@ function switchPanel(panelName) {
 // --- Search & Analysis Execution ---
 async function performAnalysis(companyName) {
   if (!companyName) return;
+  
+  currentAnalyzedCompany = companyName;
 
   switchPanel('loading');
   submitBtn.disabled = true;

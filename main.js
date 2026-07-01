@@ -5,7 +5,108 @@
 
 // --- Constants & State ---
 const STORAGE_KEY = 'signnith_news_finder_history';
+const LANG_STORAGE_KEY = 'signnith_news_finder_lang';
 let searchHistory = [];
+
+// ── i18n ─────────────────────────────────────────────────────────────────────
+let currentLang = localStorage.getItem(LANG_STORAGE_KEY) || 'ko';
+
+const i18n = {
+  ko: {
+    'nav.history': '검색 이력',
+    'history.title': '최근 분석 이력',
+    'history.clearAll': '모두 지우기',
+    'history.empty': '이력이 존재하지 않습니다',
+    'search.placeholder': '기업명 입력 (예: 삼성전자, NVIDIA)',
+    'search.submit': 'AI 분석 시작',
+    'feature1.title': '01 실시간 구글 검색 접지',
+    'feature1.desc': '검색 결과 기반의 실시간 팩트만을 참조하는 Grounding 기술을 통해 비즈니스 정보 왜곡 및 환각을 차단합니다.',
+    'feature2.title': '02 시장 영향 신속 진단',
+    'feature2.desc': '보도 뉴스의 함의를 종합 진단하여 긍정적, 중립적, 혹은 우려됨 단계의 직관적 지표를 제공합니다.',
+    'feature3.title': '03 입체적 투자 리포트',
+    'feature3.desc': '핵심 뉴스 요약부터 단기 변동성 리스크, 장기 성장 동력까지 고가독성 마크다운으로 렌더링합니다.',
+    'loading.title': '분석을 준비하고 있습니다...',
+    'loading.desc': '서버와 통신하여 실시간 검색 단계를 초기화 중입니다.',
+    'intel.investorFlow': '투자자 수급 현황',
+    'intel.individual': '개인',
+    'intel.institution': '기관',
+    'intel.foreigner': '외국인',
+    'intel.keyMetrics': '주요 지표',
+    'intel.consensus': '전문가 컨센서스',
+    'intel.recentResearch': '최근 리서치',
+    'intel.sectorPeers': '동일 업종 비교',
+    'news.sourcesTitle': '실시간 속보 출처',
+    'news.loading': '속보를 불러오는 중...',
+    'tabs.aiAnalysis': 'AI 뉴스 분석',
+    'tabs.threeC': '3C 전략 분석',
+    'analysis.waiting': '분석 결과를 기다리는 중...',
+    'error.title': '분석에 실패하였습니다',
+    'error.desc': '일시적인 네트워크 장애나 설정 오류로 요청을 수행하지 못했습니다.',
+    'error.retry': '다시 시도하기',
+  },
+  en: {
+    'nav.history': 'Search History',
+    'history.title': 'Recent Analysis History',
+    'history.clearAll': 'Clear All',
+    'history.empty': 'No history found',
+    'search.placeholder': 'Enter company name (e.g. Samsung, NVIDIA)',
+    'search.submit': 'Start AI Analysis',
+    'feature1.title': '01 Real-time Google Search Grounding',
+    'feature1.desc': 'Grounding technology that references only real-time facts from search results, preventing hallucinations and information distortion.',
+    'feature2.title': '02 Rapid Market Impact Diagnosis',
+    'feature2.desc': 'Comprehensive diagnosis of news implications, providing intuitive indicators at Positive, Neutral, or Concerning levels.',
+    'feature3.title': '03 Multi-dimensional Investment Report',
+    'feature3.desc': 'From key news summaries to short-term volatility risks and long-term growth drivers, rendered in high-readability Markdown.',
+    'loading.title': 'Preparing analysis...',
+    'loading.desc': 'Communicating with the server to initialize the real-time search phase.',
+    'intel.investorFlow': 'Investor Flow',
+    'intel.individual': 'Retail',
+    'intel.institution': 'Institutional',
+    'intel.foreigner': 'Foreign',
+    'intel.keyMetrics': 'Key Metrics',
+    'intel.consensus': 'Analyst Consensus',
+    'intel.recentResearch': 'Recent Research',
+    'intel.sectorPeers': 'Sector Peers',
+    'news.sourcesTitle': 'Live News Sources',
+    'news.loading': 'Loading breaking news...',
+    'tabs.aiAnalysis': 'AI News Analysis',
+    'tabs.threeC': '3C Strategy Analysis',
+    'analysis.waiting': 'Waiting for analysis results...',
+    'error.title': 'Analysis Failed',
+    'error.desc': 'The request could not be completed due to a temporary network issue or configuration error.',
+    'error.retry': 'Retry',
+  },
+};
+
+function applyLanguage(lang) {
+  currentLang = lang;
+  localStorage.setItem(LANG_STORAGE_KEY, lang);
+  document.getElementById('html-root').lang = lang;
+
+  // Swap text content
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (i18n[lang] && i18n[lang][key] !== undefined) {
+      el.textContent = i18n[lang][key];
+    }
+  });
+
+  // Swap placeholder attributes
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (i18n[lang] && i18n[lang][key] !== undefined) {
+      el.placeholder = i18n[lang][key];
+    }
+  });
+
+  // Update toggle button labels
+  const labelEl = document.getElementById('lang-label');
+  const otherEl = document.getElementById('lang-other');
+  if (labelEl) labelEl.textContent = lang === 'ko' ? 'KO' : 'EN';
+  if (otherEl) otherEl.textContent = lang === 'ko' ? 'EN' : 'KO';
+}
+
+
 
 // --- API Configuration for
 // Base URL for API requests.
@@ -137,6 +238,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   } catch (e) {
     console.warn('Failed to clear legacy cache:', e);
+  }
+
+  // Apply saved language preference
+  applyLanguage(currentLang);
+
+  // Language toggle button
+  const langToggleBtn = document.getElementById('lang-toggle-btn');
+  if (langToggleBtn) {
+    langToggleBtn.addEventListener('click', () => {
+      applyLanguage(currentLang === 'ko' ? 'en' : 'ko');
+    });
   }
 
   loadHistory();

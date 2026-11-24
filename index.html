@@ -9,8 +9,19 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   
-  <script type="module" crossorigin src="/newsfinder/assets/index-jOxnWHuB.js"></script>
-  <link rel="stylesheet" crossorigin href="/newsfinder/assets/index-BU6X9A5V.css">
+  <script>
+    (function () {
+      try {
+        var q = new URLSearchParams(location.search).get('theme');
+        if (q === 'dark' || q === 'light') localStorage.setItem('nf-theme', q);
+        var saved = localStorage.getItem('nf-theme');
+        var dark = saved ? saved === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+      } catch (e) {}
+    })();
+  </script>
+  <script type="module" crossorigin src="/newsfinder/assets/index-CgcDzNEc.js"></script>
+  <link rel="stylesheet" crossorigin href="/newsfinder/assets/index-DL2mkpeE.css">
 </head>
 <body>
 
@@ -39,6 +50,9 @@
             <span class="lang-switch-thumb"></span>
           </span>
           <span class="lang-label-side lang-inactive" id="lang-label-en">EN</span>
+        </button>
+        <button id="theme-toggle-btn" class="nf-theme-btn" type="button" aria-label="테마 변경" title="테마 변경">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 9.8A5.5 5.5 0 0 1 6.2 2.5a5.5 5.5 0 1 0 7.3 7.3z"/></svg>
         </button>
       </div>
     </header>

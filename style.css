@@ -12,13 +12,46 @@
   --lh: calc(var(--bl) * 3); /* 24px leading */
   --maxw: 1200px;
   --c-paper: #ffffff;
+  --c-surface: #f9f9f9;
   --c-ink: #111111;
-  --c-accent: #111111; /* Changed red to black */
+  --c-accent: #111111;
+  --c-on-accent: #ffffff;
   --c-ink-light: #555555;
   --c-grid: rgba(17, 17, 17, 0.15);
-  
+  color-scheme: light;
+
   --font-family: 'Space Grotesk', 'Noto Sans KR', sans-serif;
 }
+
+html.dark {
+  --c-paper: #080a0f;
+  --c-surface: #11141d;
+  --c-ink: #f8fafc;
+  --c-accent: #f8fafc;
+  --c-on-accent: #080a0f;
+  --c-ink-light: #94a3b8;
+  --c-grid: rgba(255, 255, 255, 0.12);
+  color-scheme: dark;
+}
+html.dark .logo-img { filter: invert(1) brightness(1.1); }
+html.dark .peer-card.is-current { background: rgba(248, 250, 252, 0.06); }
+html.dark .badge-concern { color: var(--c-on-accent); }
+
+.nf-theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--c-grid);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  cursor: pointer;
+  margin-left: 8px;
+  transition: border-color .15s, background .15s, transform .15s;
+}
+.nf-theme-btn:hover { border-color: var(--c-ink); }
 
 * {
   margin: 0;
@@ -330,7 +363,7 @@ ul, ol {
   border: 1px solid var(--c-ink);
   padding: var(--lh) var(--gutter);
   margin-bottom: var(--lh);
-  background: #f9f9f9;
+  background: var(--c-surface);
 }
 
 .history-drawer.active {

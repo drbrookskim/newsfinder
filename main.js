@@ -267,6 +267,26 @@ document.addEventListener('DOMContentLoaded', () => {
   // Apply saved language preference
   applyLanguage(currentLang);
 
+  // Theme toggle button (Signnith light/dark sync)
+  const themeBtn = document.getElementById('theme-toggle-btn');
+  const syncThemeIcon = () => {
+    if (!themeBtn) return;
+    const isDark = document.documentElement.classList.contains('dark');
+    themeBtn.innerHTML = isDark
+      ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1"/></svg>'
+      : '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 9.8A5.5 5.5 0 0 1 6.2 2.5a5.5 5.5 0 1 0 7.3 7.3z"/></svg>';
+    themeBtn.title = isDark ? '라이트 모드로 전환' : '다크 모드로 전환';
+  };
+  syncThemeIcon();
+  if (themeBtn) {
+    themeBtn.addEventListener('click', () => {
+      const nextDark = !document.documentElement.classList.contains('dark');
+      document.documentElement.classList.toggle('dark', nextDark);
+      try { localStorage.setItem('nf-theme', nextDark ? 'dark' : 'light'); } catch {}
+      syncThemeIcon();
+    });
+  }
+
   // Language toggle button
   const langToggleBtn = document.getElementById('lang-toggle-btn');
   if (langToggleBtn) {

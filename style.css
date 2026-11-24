@@ -36,6 +36,12 @@ html.dark {
 html.dark .logo-img { filter: invert(1) brightness(1.1); }
 html.dark .peer-card.is-current { background: rgba(248, 250, 252, 0.06); }
 html.dark .badge-concern { color: var(--c-on-accent); }
+html.dark .marquee-bar { background: var(--c-surface); color: var(--c-ink); border-top: 1px solid var(--c-grid); }
+html.dark .marquee-label { color: var(--c-ink); border-right-color: var(--c-grid); }
+html.dark .marquee-tile { border-right-color: var(--c-grid); }
+html.dark .tile-company { color: var(--c-ink); }
+html.dark .tile-time,
+html.dark .tile-summary { color: var(--c-ink-light); }
 
 .nf-theme-btn {
   display: inline-flex;

@@ -136,7 +136,7 @@ function applyLanguage(lang) {
 // Base URL for API requests.
 // Local dev uses port 3000, production (GitHub Pages) calls the Cloudflare Worker backend.
 const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-  ? 'http://localhost:3000'
+  ? ''
   : 'https://newsfinder.drbrooks-kim.workers.dev';
 
 // DOM Elements
@@ -324,9 +324,124 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+const STOCK_SUGGESTIONS = [
+  { name: '삼성전자', en: 'Samsung Electronics', ticker: '005930', market: 'KRX' },
+  { name: 'SK하이닉스', en: 'SK hynix', ticker: '000660', market: 'KRX' },
+  { name: 'HD현대중공업', en: 'HD Hyundai Heavy Industries', ticker: '329180', market: 'KRX' },
+  { name: '현대차', en: 'Hyundai Motor', ticker: '005380', market: 'KRX' },
+  { name: '기아', en: 'Kia', ticker: '000270', market: 'KRX' },
+  { name: 'LG에너지솔루션', en: 'LG Energy Solution', ticker: '373220', market: 'KRX' },
+  { name: 'NAVER', en: 'Naver', ticker: '035420', market: 'KRX' },
+  { name: '카카오', en: 'Kakao', ticker: '035720', market: 'KRX' },
+  { name: '셀트리온', en: 'Celltrion', ticker: '068270', market: 'KRX' },
+  { name: '삼성바이오로직스', en: 'Samsung Biologics', ticker: '207940', market: 'KRX' },
+  { name: 'POSCO홀딩스', en: 'POSCO Holdings', ticker: '005490', market: 'KRX' },
+  { name: '한화에어로스페이스', en: 'Hanwha Aerospace', ticker: '012450', market: 'KRX' },
+  { name: '두산에너빌리티', en: 'Doosan Enerbility', ticker: '034020', market: 'KRX' },
+  { name: '한미반도체', en: 'HANMI Semiconductor', ticker: '042700', market: 'KRX' },
+  { name: '삼성전기', en: 'Samsung Electro-Mechanics', ticker: '009150', market: 'KRX' },
+  { name: 'KB금융', en: 'KB Financial', ticker: '105560', market: 'KRX' },
+  { name: '신한지주', en: 'Shinhan Financial', ticker: '055550', market: 'KRX' },
+  { name: 'NVIDIA', en: '엔비디아', ticker: 'NVDA', market: 'NASDAQ' },
+  { name: 'Apple', en: '애플', ticker: 'AAPL', market: 'NASDAQ' },
+  { name: '테슬라', en: 'Tesla', ticker: 'TSLA', market: 'NASDAQ' },
+  { name: 'Microsoft', en: '마이크로소프트', ticker: 'MSFT', market: 'NASDAQ' },
+  { name: 'Alphabet', en: '구글 · 알파벳', ticker: 'GOOGL', market: 'NASDAQ' },
+  { name: 'Amazon', en: '아마존', ticker: 'AMZN', market: 'NASDAQ' },
+  { name: 'Meta', en: '메타', ticker: 'META', market: 'NASDAQ' },
+  { name: 'Broadcom', en: '브로드컴', ticker: 'AVGO', market: 'NASDAQ' },
+  { name: 'AMD', en: 'Advanced Micro Devices', ticker: 'AMD', market: 'NASDAQ' },
+  { name: 'TSMC', en: 'Taiwan Semiconductor', ticker: 'TSM', market: 'NYSE' },
+  { name: 'Micron', en: '마이크론', ticker: 'MU', market: 'NASDAQ' },
+  { name: 'Palantir', en: '팔란티어', ticker: 'PLTR', market: 'NASDAQ' },
+  { name: 'Netflix', en: '넷플릭스', ticker: 'NFLX', market: 'NASDAQ' },
+  { name: 'Adobe', en: '어도비', ticker: 'ADBE', market: 'NASDAQ' },
+  { name: 'CrowdStrike', en: '크라우드스트라이크', ticker: 'CRWD', market: 'NASDAQ' },
+  { name: 'Salesforce', en: '세일즈포스', ticker: 'CRM', market: 'NYSE' },
+  { name: 'Coinbase', en: '코인베이스', ticker: 'COIN', market: 'NASDAQ' },
+  { name: 'American Battery', en: '아메리칸 배터리', ticker: 'ABAT', market: 'NASDAQ' }
+];
+
 // --- Event Listeners Setup ---
 function setupEventListeners() {
-  // Input clear button behavior
+  const autocompleteEl = document.getElementById('search-autocomplete');
+  let acMatches = [];
+  let acIndex = -1;
+
+  const hideAutocomplete = () => {
+    if (!autocompleteEl) return;
+    autocompleteEl.classList.remove('active');
+    autocompleteEl.innerHTML = '';
+    acMatches = [];
+    acIndex = -1;
+  };
+
+  const renderAutocomplete = (rawQuery) => {
+    if (!autocompleteEl) return;
+    const q = rawQuery.trim().toLowerCase();
+    if (!q) {
+      hideAutocomplete();
+      return;
+    }
+
+    const esc = (s) => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const historyItems = (searchHistory || []).map(h => ({
+      name: h.name,
+      en: '최근 검색',
+      ticker: '',
+      market: 'RECENT'
+    }));
+
+    const seen = new Set();
+    const pool = [...STOCK_SUGGESTIONS, ...historyItems].filter(item => {
+      const k = item.name.toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+
+    acMatches = pool
+      .filter(item =>
+        item.name.toLowerCase().includes(q) ||
+        item.en.toLowerCase().includes(q) ||
+        item.ticker.toLowerCase().includes(q)
+      )
+      .slice(0, 7);
+
+    if (acMatches.length === 0) {
+      hideAutocomplete();
+      return;
+    }
+
+    acIndex = -1;
+    autocompleteEl.innerHTML = acMatches.map((item, idx) => `
+      <div class="autocomplete-item" data-ac-idx="${idx}" role="option">
+        <div class="autocomplete-main">
+          <span class="autocomplete-name">${esc(item.name)}</span>
+          <span class="autocomplete-sub">${esc(item.en)}</span>
+        </div>
+        <div class="autocomplete-meta">
+          ${item.ticker ? `<span class="autocomplete-ticker">${esc(item.ticker)}</span>` : ''}
+          <span class="autocomplete-market">${esc(item.market)}</span>
+        </div>
+      </div>
+    `).join('');
+    autocompleteEl.classList.add('active');
+
+    autocompleteEl.querySelectorAll('.autocomplete-item').forEach(el => {
+      el.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const item = acMatches[Number(el.dataset.acIdx)];
+        if (!item) return;
+        companyInput.value = item.name;
+        if (clearInputBtn) clearInputBtn.style.display = 'flex';
+        hideAutocomplete();
+        performAnalysis(item.name);
+      });
+    });
+  };
+
+  // Input clear button & autocomplete behavior
   companyInput.addEventListener('input', () => {
     if (clearInputBtn) {
       if (companyInput.value.trim().length > 0) {
@@ -335,12 +450,45 @@ function setupEventListeners() {
         clearInputBtn.style.display = 'none';
       }
     }
+    renderAutocomplete(companyInput.value);
+  });
+
+  companyInput.addEventListener('keydown', (e) => {
+    if (!autocompleteEl || !autocompleteEl.classList.contains('active') || acMatches.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      acIndex = (acIndex + 1) % acMatches.length;
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      acIndex = (acIndex - 1 + acMatches.length) % acMatches.length;
+    } else if (e.key === 'Escape') {
+      hideAutocomplete();
+      return;
+    } else if (e.key === 'Enter' && acIndex >= 0) {
+      e.preventDefault();
+      const chosen = acMatches[acIndex];
+      companyInput.value = chosen.name;
+      hideAutocomplete();
+      performAnalysis(chosen.name);
+      return;
+    } else {
+      return;
+    }
+
+    autocompleteEl.querySelectorAll('.autocomplete-item').forEach((el, i) => {
+      el.classList.toggle('is-selected', i === acIndex);
+    });
+  });
+
+  companyInput.addEventListener('blur', () => {
+    setTimeout(hideAutocomplete, 120);
   });
 
   if (clearInputBtn) {
     clearInputBtn.addEventListener('click', () => {
       companyInput.value = '';
       clearInputBtn.style.display = 'none';
+      hideAutocomplete();
       companyInput.focus();
     });
   }
@@ -348,6 +496,7 @@ function setupEventListeners() {
   // Submit search query
   searchForm.addEventListener('submit', (e) => {
     e.preventDefault();
+    hideAutocomplete();
     const query = companyInput.value.trim();
     if (query) {
       performAnalysis(query);
@@ -404,6 +553,48 @@ function setupEventListeners() {
       switchAnalysisTab(tabBtn.dataset.tab);
     }
   });
+
+  // --- Top Sentiment Badge -> Jump to Market Impact Section ---
+  if (marketImpactBadge) {
+    marketImpactBadge.setAttribute('role', 'button');
+    marketImpactBadge.setAttribute('tabindex', '0');
+    marketImpactBadge.title = '클릭하여 시장 영향 분석 근거 보기';
+    const jumpToImpact = () => {
+      const impactCard = document.getElementById('insight-impact-card');
+      if (impactCard) impactCard.click();
+      const target = document.getElementById('ai-cards-stage')
+        || impactCard
+        || insightMarkdown;
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.remove('is-focused-pulse');
+      void target.offsetWidth;
+      target.classList.add('is-focused-pulse');
+    };
+    marketImpactBadge.addEventListener('click', jumpToImpact);
+    marketImpactBadge.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        jumpToImpact();
+      }
+    });
+  }
+
+  // --- Bidirectional Grounding Cross-Highlight (Source Badges <-> News Cards) ---
+  const setCrossHighlight = (idx, active) => {
+    if (!idx) return;
+    document.querySelectorAll(`.naver-news-card[data-source-idx="${idx}"], .inline-source-badge[data-source-idx="${idx}"]`)
+      .forEach(el => el.classList.toggle('is-highlighted', active));
+  };
+
+  document.addEventListener('mouseover', (e) => {
+    const el = e.target.closest('.inline-source-badge[data-source-idx], .naver-news-card[data-source-idx]');
+    if (el) setCrossHighlight(el.dataset.sourceIdx, true);
+  });
+  document.addEventListener('mouseout', (e) => {
+    const el = e.target.closest('.inline-source-badge[data-source-idx], .naver-news-card[data-source-idx]');
+    if (el && !el.contains(e.relatedTarget)) setCrossHighlight(el.dataset.sourceIdx, false);
+  });
 }
 
 
@@ -432,6 +623,105 @@ function switchPanel(panelName) {
   } else if (panelName === 'error') {
     errorPanel.classList.add('active');
   }
+}
+
+// --- Goo Thinking Spring Loader ---
+const gooRafMap = new WeakMap();
+
+function mountGooThinking(container, statusText) {
+  if (!container) return { resolve: (cb) => cb && cb() };
+
+  const prevRaf = gooRafMap.get(container);
+  if (prevRaf != null) {
+    cancelAnimationFrame(prevRaf);
+    gooRafMap.delete(container);
+  }
+
+  const esc = (s) => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  container.innerHTML = `
+    <div class="goo-thinking-wrap" role="status" aria-label="${esc(statusText)}">
+      <div class="goo-bubble">
+        <div class="goo-dots"><i></i><i></i><i></i></div>
+      </div>
+      <span class="goo-status-text">${esc(statusText)}</span>
+    </div>
+  `;
+
+  const wrap = container.querySelector('.goo-thinking-wrap');
+  const dots = [...container.querySelectorAll('.goo-dots i')].map((el, i) => ({
+    el,
+    i,
+    x: { x: 14.5 + i * 13, v: 0, t: 14.5 + i * 13, k: 300, c: 22 },
+    y: { x: 0, v: 0, t: 0, k: 420, c: 14 }
+  }));
+  const drop = { x: 1, v: 0, t: 1, k: 300, c: 26 };
+  const big = { x: 1, v: 0, t: 1, k: 300, c: 24 };
+
+  const stepSpring = (s, dt) => {
+    const a = -s.k * (s.x - s.t) - s.c * s.v;
+    s.v += a * dt;
+    s.x += s.v * dt;
+  };
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  let phase = 'think';
+  let hop = 0.25;
+  let k = 0;
+  let last = performance.now();
+  let resolved = false;
+
+  function frame(now) {
+    if (!document.body.contains(wrap)) {
+      gooRafMap.delete(container);
+      return;
+    }
+    const dt = Math.min((now - last) / 1000, 1 / 30);
+    last = now;
+
+    if (phase === 'think' && (hop -= dt) <= 0) {
+      dots[k % 3].y.v = -95;
+      k++;
+      hop = k % 3 ? 0.16 : 0.46;
+    }
+
+    const sub = 4;
+    for (let s = 0; s < sub; s++) {
+      stepSpring(drop, dt / sub);
+      stepSpring(big, dt / sub);
+      dots.forEach(d => {
+        stepSpring(d.x, dt / sub);
+        stepSpring(d.y, dt / sub);
+      });
+    }
+
+    const sc = clamp(drop.x, 0, 1.2) * big.x;
+    dots.forEach(d => {
+      d.el.style.transform = `translate(${d.x.x.toFixed(2)}px, ${(15.5 + d.y.x).toFixed(2)}px) scale(${sc.toFixed(3)})`;
+    });
+
+    gooRafMap.set(container, requestAnimationFrame(frame));
+  }
+
+  gooRafMap.set(container, requestAnimationFrame(frame));
+
+  return {
+    resolve(onDone) {
+      if (resolved) return;
+      resolved = true;
+      phase = 'merge';
+      dots.forEach(d => { d.x.t = 32 - 4.5; d.y.t = 0; });
+      big.t = 1.45;
+      setTimeout(() => { drop.t = 0; }, 220);
+      setTimeout(() => {
+        const raf = gooRafMap.get(container);
+        if (raf != null) {
+          cancelAnimationFrame(raf);
+          gooRafMap.delete(container);
+        }
+        if (onDone) onDone();
+      }, 420);
+    }
+  };
 }
 
 // --- Search & Analysis Execution ---
@@ -469,31 +759,23 @@ async function performAnalysis(companyName) {
 
     // ── SSE Streaming Path ────────────────────────────────────────────────
     if (contentType.includes('text/event-stream')) {
-      // Prepare results panel immediately so user sees content as it streams in
+      // Prepare results panel immediately with Goo Thinking loaders
       resultCompanyName.textContent = companyName;
       resetMarketIntelPanel();
       updateImpactBadge('neutral');
-      insightMarkdown.innerHTML = '<div class="streaming-cursor">▋</div>';
+      const threeCContainer = document.getElementById('threec-container');
+      const aiGoo = mountGooThinking(insightMarkdown, '실시간 뉴스에서 4개 관점을 추출하고 있습니다');
+      const threeCGoo = mountGooThinking(threeCContainer, 'AI 뉴스 분석 완료 후 3C 전략을 구성합니다');
       switchPanel('results');
       switchAnalysisTab('ai');
-      
-      // Load price and market intel in parallel while AI is streaming
+
+      // Load price and market intel in parallel while AI is thinking
       fetchAndDisplayStockPrice(companyName);
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let sseBuffer = '';
       let streamedText = '';
-      let renderTimer = null;
-
-      // Throttled render: batch DOM updates to avoid layout thrashing
-      const scheduleRender = () => {
-        if (renderTimer) return;
-        renderTimer = requestAnimationFrame(() => {
-          renderTimer = null;
-          insightMarkdown.innerHTML = customMarkdownParser(streamedText) + '<span class="streaming-cursor">▋</span>';
-        });
-      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -511,49 +793,28 @@ async function performAnalysis(companyName) {
 
             if (event.type === 'token') {
               streamedText += event.text;
-              scheduleRender();
 
             } else if (event.type === 'complete') {
-              // Final render — remove cursor
               const finalInsight = event.insight || streamedText;
               const impact = detectMarketImpact(finalInsight);
               updateImpactBadge(impact);
-              insightMarkdown.innerHTML = customMarkdownParser(finalInsight);
 
-              // Render supplementary panels
-              renderSources(event.sources);
-              render3CAnalysis(event.threeC, event.sources);
+              // Render Naver News Sidebar immediately
+              const items = (event.naverNewsItems && event.naverNewsItems.length > 0) ? event.naverNewsItems : event.sources;
+              renderNaverNewsSidebar(items);
 
-              // Render Naver News Sidebar (fallback to sources if naverNewsItems is empty)
-              const naverNewsSidebar = document.getElementById('naver-news-sidebar');
-              if (naverNewsSidebar) {
-                const items = (event.naverNewsItems && event.naverNewsItems.length > 0) ? event.naverNewsItems : event.sources;
-                if (items && items.length > 0) {
-                  naverNewsSidebar.innerHTML = items.map(item => {
-                    const title = (item.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    const desc = (item.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    
-                    let dateStr = '';
-                    if (item.pubDate) {
-                      try {
-                        const parsedDate = new Date(item.pubDate);
-                        if (!isNaN(parsedDate.getTime())) {
-                          dateStr = parsedDate.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                        }
-                      } catch {}
-                    }
-                    if (!dateStr) dateStr = '실시간 속보';
+              // 1) Resolve AI News Analysis Goo Thinking -> 2x2 Grid
+              aiGoo.resolve(() => {
+                renderAIInsightGrid(finalInsight, event.sources);
+                renderSources(event.sources);
 
-                    return `<a href="${item.url}" target="_blank" rel="noopener noreferrer" class="naver-news-card">
-                      <h4 class="naver-news-title">${title}</h4>
-                      <p class="naver-news-desc">${desc}</p>
-                      <div class="naver-news-date">${dateStr}</div>
-                    </a>`;
-                  }).join('');
-                } else {
-                  naverNewsSidebar.innerHTML = '<p class="news-meta">최신 뉴스 데이터를 불러올 수 없습니다.</p>';
-                }
-              }
+                // 2) Sequentially resolve 3C Strategy Goo Thinking -> Expand Cards
+                setTimeout(() => {
+                  threeCGoo.resolve(() => {
+                    render3CAnalysis(event.threeC, event.sources);
+                  });
+                }, 260);
+              });
 
               // Marquee summary
               const extractedSummary = extractSummaryText(finalInsight);
@@ -594,6 +855,12 @@ async function performAnalysis(companyName) {
       try { clientNews = await fetchGoogleNewsRSSClient(companyName); } catch {}
 
       const demoData = generateClientMockData(companyName, clientNews);
+      if (!demoData) {
+        if (errorTitle) errorTitle.textContent = `"${companyName}" 검색 결과를 찾을 수 없습니다`;
+        if (errorDesc) errorDesc.textContent = '종목명 오탈자를 확인하거나, 정확한 기업명·티커(예: HD현대중공업, 삼성전자)로 다시 검색해 주세요.';
+        switchPanel('error');
+        return;
+      }
       renderResults(companyName, demoData);
       saveToHistory(companyName);
       switchPanel('results');
@@ -604,16 +871,19 @@ async function performAnalysis(companyName) {
     }
 
     console.error('Analysis failed:', error);
+    if (errorTitle) errorTitle.textContent = '분석에 실패하였습니다';
     document.getElementById('error-desc').textContent = error.message || '네트워크 장애 또는 백엔드 오프라인 상태입니다.';
     switchPanel('error');
   } finally {
     submitBtn.disabled = false;
     companyInput.disabled = false;
-    companyInput.value = '';
-    companyInput.blur();
-    if (typeof clearInputBtn !== 'undefined' && clearInputBtn) {
-      clearInputBtn.style.display = 'none';
+    if (!errorPanel.classList.contains('active')) {
+      companyInput.value = '';
+      if (typeof clearInputBtn !== 'undefined' && clearInputBtn) {
+        clearInputBtn.style.display = 'none';
+      }
     }
+    companyInput.blur();
   }
 }
 
@@ -642,6 +912,46 @@ function updateLoadingStep(step) {
   }
 }
 
+// --- Naver News Sidebar Renderer ---
+function renderNaverNewsSidebar(items) {
+  const naverNewsSidebar = document.getElementById('naver-news-sidebar');
+  if (!naverNewsSidebar) return;
+
+  if (!items || items.length === 0) {
+    naverNewsSidebar.innerHTML = '<p class="news-meta">최신 뉴스 데이터를 불러올 수 없습니다.</p>';
+    return;
+  }
+
+  naverNewsSidebar.innerHTML = items.map((item, idx) => {
+    const title = (item.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const desc = (item.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const sourceNum = idx + 1;
+    const indexLabel = String(sourceNum).padStart(2, '0');
+
+    let dateStr = '';
+    if (item.pubDate) {
+      try {
+        const parsedDate = new Date(item.pubDate);
+        if (!isNaN(parsedDate.getTime())) {
+          dateStr = parsedDate.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+      } catch {}
+    }
+    if (!dateStr) dateStr = '실시간 속보';
+
+    return `
+      <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="naver-news-card" data-source-idx="${sourceNum}" id="news-source-card-${sourceNum}">
+        <div class="naver-news-meta-row">
+          <span class="naver-news-index">${indexLabel}</span>
+          <span class="naver-news-date">${dateStr}</span>
+        </div>
+        <h4 class="naver-news-title">${title}</h4>
+        <p class="naver-news-desc">${desc}</p>
+      </a>
+    `;
+  }).join('');
+}
+
 // --- Results Rendering ---
 function renderResults(companyName, data) {
   // Update header metadata
@@ -655,53 +965,27 @@ function renderResults(companyName, data) {
   const impact = detectMarketImpact(insightText);
   updateImpactBadge(impact);
 
-  // Parse and display markdown body
-  insightMarkdown.innerHTML = customMarkdownParser(insightText);
+  // Parse and display AI News Analysis as 2x2 Editorial Card Grid
+  renderAIInsightGrid(insightText, data.sources);
 
   // Render sources grid
   renderSources(data.sources);
 
-  // Render 3C analysis
-  render3CAnalysis(data.threeC, data.sources);
+  // Sequentially reveal 3C analysis after AI News Analysis
+  const threeCContainer = document.getElementById('threec-container');
+  const threeCGoo = mountGooThinking(threeCContainer, '3C 전략 프레임워크를 구성하고 있습니다');
+  setTimeout(() => {
+    threeCGoo.resolve(() => {
+      render3CAnalysis(data.threeC, data.sources);
+    });
+  }, 260);
 
   // Reset to AI tab on new search
   switchAnalysisTab('ai');
 
   // Render Naver News Sidebar (fallback to sources if naverNewsItems is empty)
-  const naverNewsSidebar = document.getElementById('naver-news-sidebar');
-
-  if (naverNewsSidebar) {
-    const items = (data.naverNewsItems && data.naverNewsItems.length > 0) ? data.naverNewsItems : data.sources;
-    if (items && items.length > 0) {
-      let html = '';
-      items.forEach(item => {
-        const title = (item.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const desc = (item.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        
-        let dateStr = '';
-        if (item.pubDate) {
-          try {
-            const parsedDate = new Date(item.pubDate);
-            if (!isNaN(parsedDate.getTime())) {
-              dateStr = parsedDate.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-            }
-          } catch {}
-        }
-        if (!dateStr) dateStr = '실시간 속보';
-
-        html += `
-          <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="naver-news-card">
-            <h4 class="naver-news-title">${title}</h4>
-            <p class="naver-news-desc">${desc}</p>
-            <div class="naver-news-date">${dateStr}</div>
-          </a>
-        `;
-      });
-      naverNewsSidebar.innerHTML = html;
-    } else {
-      naverNewsSidebar.innerHTML = '<p class="news-meta">최신 뉴스 데이터를 불러올 수 없습니다.</p>';
-    }
-  }
+  const items = (data.naverNewsItems && data.naverNewsItems.length > 0) ? data.naverNewsItems : data.sources;
+  renderNaverNewsSidebar(items);
 
   // Extract and add key summary to flowing bottom marquee feed
   const extractedSummary = extractSummaryText(insightText);
@@ -763,7 +1047,7 @@ function buildClientFallbackThreeC(companyName, sources = []) {
     },
     company: {
       label: "Company (자사)",
-      signal: `기업 펀더멘탈: ${headline2.substring(0, 40)}...`,
+      signal: `기업 펀더멘탈: ${headline2}`,
       bullets: [
         `"${headline3}" 뉴스 등 최신 정보 중심의 비즈니스 펀더멘탈 점검`,
         "운영 효율성 제고 및 제품 믹스 개선 작업을 통한 마진 스프레드 방어",
@@ -782,7 +1066,578 @@ function buildClientFallbackThreeC(companyName, sources = []) {
   };
 }
 
-// --- 3C Analysis Renderer ---
+// --- AI News Analysis 2x2 Editorial Card Grid Renderer ---
+function renderAIInsightGrid(insightText, sources = []) {
+  const container = document.getElementById('insight-markdown');
+  if (!container) return;
+
+  if (!insightText || !insightText.trim()) {
+    container.innerHTML = '';
+    return;
+  }
+
+  // Parse ## (or ###) sections
+  let sections = [];
+  const lines = insightText.split(/\r?\n/);
+  let current = null;
+  for (const line of lines) {
+    const h2 = line.match(/^##\s+(.+)$/);
+    if (h2) {
+      if (current) sections.push(current);
+      current = { title: h2[1].trim(), lines: [] };
+    } else if (current) {
+      current.lines.push(line);
+    }
+  }
+  if (current) sections.push(current);
+
+  // Fallback to ### if ## headings weren't used
+  if (sections.length < 2) {
+    sections = [];
+    current = null;
+    for (const line of lines) {
+      const h3 = line.match(/^#{2,3}\s+(.+)$/);
+      if (h3) {
+        if (current) sections.push(current);
+        current = { title: h3[1].trim(), lines: [] };
+      } else if (current) {
+        current.lines.push(line);
+      }
+    }
+    if (current) sections.push(current);
+  }
+
+  if (sections.length === 0) {
+    container.innerHTML = customMarkdownParser(insightText);
+    return;
+  }
+
+  const esc = (s) => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const stripMd = (s) => s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').replace(/\[(\d+)\]/g, '').trim();
+  const cleanCat = (s) => stripMd(s).replace(/\s*\([A-Za-z\s&]+\)\s*$/g, '').trim();
+
+  const summarySec = sections.find(s => /요약|summary/i.test(s.title)) || sections[0];
+  const impactSec = sections.find(s => /영향|impact/i.test(s.title)) || sections[1];
+  const insightSec = sections.find(s => /인사이트|insight|전망|전략/i.test(s.title)) || sections[2];
+
+  const parseBullet = (line) => {
+    const raw = line.replace(/^(?:[-*•]|\d+\.)\s+/, '').trim();
+    const boldLabel = raw.match(/^\*\*(.+?)\*\*\s*[:：]?\s*(.*)$/);
+    if (boldLabel) {
+      return {
+        label: cleanCat(boldLabel[1]),
+        body: stripMd(boldLabel[2] || boldLabel[1])
+      };
+    }
+    return { label: '핵심 요약', body: stripMd(raw) };
+  };
+
+  const extractItems = (sec) => {
+    if (!sec) return [];
+    const bullets = sec.lines
+      .map(l => l.trim())
+      .filter(l => /^(?:[-*•]|\d+\.)\s+/.test(l))
+      .map(parseBullet)
+      .filter(x => x.body.length > 0);
+    if (bullets.length >= 2) return bullets;
+
+    // Fallback: split non-empty paragraphs/sentences when AI outputs prose instead of bullets
+    const prose = sec.lines
+      .map(l => stripMd(l.replace(/^(?:[-*•]|\d+\.)\s+/, '')))
+      .filter(l => l.length > 0)
+      .join(' ');
+    const sentences = prose
+      .split(/(?<=[.!?。])\s+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+    if (bullets.length === 1 && sentences.length > 1) {
+      return [bullets[0], ...sentences.slice(1).map(s => ({ label: '주요 동향', body: s }))];
+    }
+    if (sentences.length > 0) {
+      return sentences.map((s, idx) => ({ label: idx === 0 ? '재무·실적' : '사업·운영', body: s }));
+    }
+    return bullets;
+  };
+
+  const summaryBullets = extractItems(summarySec);
+
+  const impact = detectMarketImpact(insightText);
+  const impactAv = impact === 'positive' ? '8' : (impact === 'concern' ? '4' : '5');
+  const impactText = (impactSec?.lines || [])
+    .map(l => l.trim())
+    .filter(l => l.length > 0)
+    .map(l => stripMd(l.replace(/^(?:[-*•]|\d+\.)\s+/, '')))
+    .join(' · ');
+
+  const insightBullets = extractItems(insightSec);
+
+  const cards = [];
+
+  // Card 1: 핵심 요약 (재무/핵심)
+  const b1 = summaryBullets[0] || { label: '핵심 뉴스 요약', body: stripMd((summarySec?.lines || []).join(' ')) || '최신 뉴스 핵심 요약을 확인하세요.' };
+  const extra1 = summaryBullets.slice(2, 3);
+  cards.push({
+    av: '6',
+    tag: 'FINANCE',
+    shortLabel: '01 재무',
+    category: '재무 관점',
+    eyebrow: '01 · 핵심 요약',
+    title: b1.label,
+    desc: b1.body,
+    detailPoints: [b1, ...extra1].map(x => `<strong>${esc(x.label)}</strong>: ${esc(x.body)}`),
+    author: 'Signnith AI',
+    sub: '재무 및 실적 관점',
+    avatar: '01',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`
+  });
+
+  // Card 2: 사업 현황 (운영/동향)
+  const b2 = summaryBullets[1] || summaryBullets[0] || { label: '핵심 사업 및 운영 현황', body: b1.body };
+  const extra2 = summaryBullets.slice(3);
+  cards.push({
+    av: '10',
+    tag: 'OPS',
+    shortLabel: '02 운영',
+    category: '운영 관점',
+    eyebrow: '02 · 사업 현황',
+    title: b2.label === b1.label && summaryBullets.length < 2 ? '사업 및 운영 동향' : b2.label,
+    desc: b2.body,
+    detailPoints: [b2, ...extra2].map(x => `<strong>${esc(x.label)}</strong>: ${esc(x.body)}`),
+    author: 'Signnith AI',
+    sub: '운영 및 성장 동력 관점',
+    avatar: '02',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`
+  });
+
+  // Card 3: Market Impact Analysis
+  const impactBullets = (impactSec?.lines || [])
+    .map(l => l.trim())
+    .filter(l => l.length > 0)
+    .map(parseBullet);
+  const impactHeadline = impact === 'positive' ? '긍정적 (Positive)' : (impact === 'concern' ? '우려됨 (Concern)' : '중립적 (Neutral)');
+  const impactReason = impactBullets.find(b => b.label.includes('근거') || b.label.includes('Rationale'))?.body
+    || impactBullets[impactBullets.length - 1]?.body
+    || impactText
+    || '실시간 뉴스 기반 시장 영향 분석 결과입니다.';
+  cards.push({
+    id: 'insight-impact-card',
+    av: impactAv,
+    tag: 'IMPACT',
+    shortLabel: '03 영향',
+    category: impact === 'positive' ? '긍정적' : (impact === 'concern' ? '우려됨' : '중립적'),
+    eyebrow: '03 · 시장 영향',
+    title: `종합 시장 영향: ${impactHeadline}`,
+    desc: impactReason,
+    detailPoints: impactBullets.length > 0
+      ? impactBullets.map(x => `<strong>${esc(x.label)}</strong>: ${esc(x.body)}`)
+      : [esc(impactReason)],
+    author: 'Market Sentiment',
+    sub: '시장 파급력 관점',
+    avatar: 'AI',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>`
+  });
+
+  // Card 4: Investor Insights (Risks & Opportunities)
+  const firstIns = insightBullets[0];
+  const insightDesc = firstIns ? firstIns.body : (stripMd((insightSec?.lines || []).join(' ')) || '단기 변동성 및 중장기 성장 동력을 함께 점검하세요.');
+  cards.push({
+    av: '5',
+    tag: 'INSIGHT',
+    shortLabel: '04 인사이트',
+    category: '리스크 & 기회',
+    eyebrow: '04 · 투자 인사이트',
+    title: firstIns && firstIns.label !== '핵심 요약' ? `${firstIns.label} 및 중장기 기회` : '단기 리스크 및 중장기 기회',
+    desc: insightDesc,
+    detailPoints: insightBullets.length > 0
+      ? insightBullets.map(x => `<strong>${esc(x.label)}</strong>: ${esc(x.body)}`)
+      : [esc(insightDesc)],
+    author: 'Strategy Brief',
+    sub: '리스크 · 기회 관점',
+    avatar: 'IN',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`
+  });
+
+  container.innerHTML = `
+    <div class="ai-cards-stage" id="ai-cards-stage">
+      <div class="ai-cards-grid">
+        ${cards.map((c, idx) => `
+          <article class="ai-brief-card" data-card-idx="${idx}" ${c.id ? `id="${c.id}"` : ''} role="button" tabindex="0">
+            <div class="ai-brief-top">
+              <div class="ai-brief-thumb" data-av="${c.av}">
+                ${c.icon}
+                <span class="ai-brief-thumb-tag">${esc(c.tag)}</span>
+              </div>
+              <div class="ai-brief-content">
+                <div class="ai-brief-meta">
+                  <span>${esc(c.eyebrow)}</span>
+                  <span>•</span>
+                  <span class="ai-brief-meta-accent">${esc(c.category)}</span>
+                </div>
+                <h4 class="ai-brief-title">${esc(c.title)}</h4>
+                <p class="ai-brief-desc">${esc(c.desc)}</p>
+              </div>
+            </div>
+            <div class="ai-brief-footer">
+              <div class="ai-brief-author">
+                <span class="ai-brief-avatar">${esc(c.avatar)}</span>
+                <div class="ai-brief-author-text">
+                  <span class="ai-brief-author-name">${esc(c.author)}</span>
+                  <span class="ai-brief-author-sub">${esc(c.sub)}</span>
+                </div>
+              </div>
+              <button type="button" class="ai-brief-action" aria-label="${esc(c.category)} 상세 보기" title="4타일 크기로 상세 보기">
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8h9M9 4.5 12.5 8 9 11.5"/></svg>
+              </button>
+            </div>
+          </article>
+        `).join('')}
+      </div>
+      <div class="ai-detail-panel" id="ai-detail-panel" aria-live="polite"></div>
+    </div>
+  `;
+
+  const stage = container.querySelector('#ai-cards-stage');
+  const detailPanel = container.querySelector('#ai-detail-panel');
+  let activeIdx = -1;
+
+  const renderDetail = (idx) => {
+    activeIdx = (idx + cards.length) % cards.length;
+    const c = cards[activeIdx];
+    stage.classList.add('is-detail-open');
+    detailPanel.innerHTML = `
+      <div class="ai-detail-banner" data-av="${c.av}">
+        <div class="ai-detail-banner-left">
+          ${c.icon}
+          <div>
+            <div class="ai-detail-banner-kicker">${esc(c.eyebrow)} · ${esc(c.category)}</div>
+            <div class="ai-detail-banner-title">${esc(c.sub)}</div>
+          </div>
+        </div>
+        <button type="button" class="ai-detail-close" id="ai-detail-close-btn">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 8h-9M7 4.5 3.5 8 7 11.5"/></svg>
+          <span>4개 관점 보기</span>
+        </button>
+      </div>
+      <div class="ai-detail-body">
+        <h4 class="ai-detail-headline">${esc(c.title)}</h4>
+        <ul class="ai-detail-points">
+          ${c.detailPoints.map(pt => `<li>${pt}</li>`).join('')}
+        </ul>
+      </div>
+      <div class="ai-detail-footer">
+        <div class="ai-detail-dots">
+          ${cards.map((tab, tIdx) => `
+            <button type="button" class="ai-detail-tab ${tIdx === activeIdx ? 'active' : ''}" data-goto-idx="${tIdx}">${esc(tab.shortLabel)}</button>
+          `).join('')}
+        </div>
+        <div class="ai-detail-arrows">
+          <button type="button" class="ai-detail-arrow-btn" id="ai-detail-prev" aria-label="이전 관점">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 8h-9M7 4.5 3.5 8 7 11.5"/></svg>
+          </button>
+          <button type="button" class="ai-detail-arrow-btn" id="ai-detail-next" aria-label="다음 관점">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8h9M9 4.5 12.5 8 9 11.5"/></svg>
+          </button>
+        </div>
+      </div>
+    `;
+
+    detailPanel.querySelector('#ai-detail-close-btn')?.addEventListener('click', () => {
+      activeIdx = -1;
+      stage.classList.remove('is-detail-open');
+    });
+    detailPanel.querySelector('#ai-detail-prev')?.addEventListener('click', () => renderDetail(activeIdx - 1));
+    detailPanel.querySelector('#ai-detail-next')?.addEventListener('click', () => renderDetail(activeIdx + 1));
+    detailPanel.querySelectorAll('[data-goto-idx]').forEach(btn => {
+      btn.addEventListener('click', () => renderDetail(Number(btn.dataset.gotoIdx)));
+    });
+  };
+
+  container.querySelectorAll('.ai-brief-card').forEach(card => {
+    const idx = Number(card.dataset.cardIdx);
+    const openCard = () => renderDetail(idx);
+    card.addEventListener('click', openCard);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openCard();
+      }
+    });
+  });
+}
+
+// --- Reusable Expand Card (Spring Motion) ---
+const expandRafMap = new WeakMap();
+
+function mountExpandCards(container, cards, companyName) {
+  if (!container) return;
+
+  const prevRaf = expandRafMap.get(container);
+  if (prevRaf != null) {
+    cancelAnimationFrame(prevRaf);
+    expandRafMap.delete(container);
+  }
+
+  const esc = (s) => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  container.innerHTML = `
+    <div class="threec-expand-list">
+      ${cards.map((card, idx) => {
+        const labelText = esc(card.label);
+        const bannerTitle = esc(card.bannerTitle || card.label);
+        const signalText = esc(card.signal || '');
+        const badgeText = esc(card.badge || `${(card.bullets || []).length}개 포인트`);
+        const bodyHtml = card.bodyHtml
+          ? card.bodyHtml
+          : `<ul class="threec-ex-bullets">${(card.bullets || []).map(b => `<li>${esc(b)}</li>`).join('')}</ul>`;
+
+        return `
+          <div class="threec-ex" data-i="${idx}" role="button" tabindex="0" aria-expanded="false">
+            <div class="threec-ex-thumb" data-av="${card.av}">
+              ${card.icon}
+              <span class="threec-ex-thumb-title">${bannerTitle}</span>
+            </div>
+            <div class="threec-ex-head">
+              <div class="threec-ex-kicker">${labelText}</div>
+              <div class="threec-ex-title">${signalText}</div>
+            </div>
+            <span class="threec-ex-badge">${badgeText}</span>
+            <div class="threec-ex-more">
+              ${bodyHtml}
+              <div class="threec-ex-row">
+                <span class="threec-ex-chip">${esc(companyName)}</span>
+                <span class="threec-ex-chip">${labelText}</span>
+                <span class="threec-ex-go">접기</span>
+              </div>
+            </div>
+          </div>`;
+      }).join('')}
+    </div>`;
+
+  const list = container.querySelector('.threec-expand-list');
+  if (!list) return;
+  const els = [...list.querySelectorAll('.threec-ex')];
+  if (els.length === 0) return;
+
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const ROW = 76, GAP = 10;
+  const BASE_H = els.length * ROW + (els.length - 1) * GAP;
+  list.style.height = `${BASE_H}px`;
+
+  const S = (x, k = 400, c = 30) => ({ x, v: 0, t: x, k, c: reduce ? 2 * Math.sqrt(k) : c });
+  const stepSpring = (s, dt) => {
+    const a = -s.k * (s.x - s.t) - s.c * s.v;
+    s.v += a * dt;
+    s.x += s.v * dt;
+  };
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  const timers = [];
+  const after = (sec, fn) => { timers.push({ t: sec, fn }); };
+
+  const rows = els.map((el, i) => ({
+    el,
+    i,
+    thumb: el.querySelector('.threec-ex-thumb'),
+    thumbTitle: el.querySelector('.threec-ex-thumb-title'),
+    head: el.querySelector('.threec-ex-head'),
+    badge: el.querySelector('.threec-ex-badge'),
+    more: el.querySelector('.threec-ex-more'),
+    p: S(0, 240, 21),
+    a: S(0, 260, 28),
+    y: S(i * (ROW + GAP), 300, 26),
+    o: S(1, 300, 30),
+    s: S(1, 300, 26),
+  }));
+
+  let open = -1;
+
+  function show(i) {
+    open = i;
+    rows.forEach(r => {
+      const home = r.i * (ROW + GAP);
+      if (i < 0) {
+        r.p.t = 0; r.a.t = 0; r.y.t = home; r.o.t = 1; r.s.t = 1;
+        r.el.setAttribute('aria-expanded', 'false');
+        return;
+      }
+      if (r.i === i) {
+        r.p.t = 1; r.y.t = 0; r.o.t = 1; r.s.t = 1;
+        r.el.setAttribute('aria-expanded', 'true');
+        r.el.style.zIndex = '2';
+        after(0.16, () => { if (open === i) r.a.t = 1; });
+      } else {
+        r.a.t = 0; r.p.t = 0; r.o.t = 0; r.s.t = 0.94;
+        r.y.t = home + (r.i < i ? -24 : 24);
+        r.el.setAttribute('aria-expanded', 'false');
+        r.el.style.zIndex = '1';
+      }
+    });
+  }
+
+  rows.forEach(r => {
+    const toggle = () => show(open === r.i ? -1 : r.i);
+    r.el.addEventListener('click', toggle);
+    r.el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle();
+      }
+    });
+  });
+
+  let last = performance.now();
+  function frame(now) {
+    if (!document.body.contains(list)) {
+      expandRafMap.delete(container);
+      return;
+    }
+    const dt = Math.min((now - last) / 1000, 1 / 30);
+    last = now;
+
+    for (let i = timers.length - 1; i >= 0; i--) {
+      if ((timers[i].t -= dt) <= 0) timers.splice(i, 1)[0].fn();
+    }
+
+    const sub = 4;
+    for (let k = 0; k < sub; k++) {
+      rows.forEach(r => {
+        stepSpring(r.p, dt / sub);
+        stepSpring(r.a, dt / sub);
+        stepSpring(r.y, dt / sub);
+        stepSpring(r.o, dt / sub);
+        stepSpring(r.s, dt / sub);
+      });
+    }
+
+    const W = list.offsetWidth;
+    if (W > 0) {
+      let maxH = BASE_H;
+      rows.forEach(r => {
+        const p = r.p.x;
+        const q = clamp(p, 0, 1);
+        const full = 174 + r.more.offsetHeight + 18;
+        const curH = ROW + p * (full - ROW);
+        if (r.i === open && full > maxH) maxH = full;
+        r.el.style.height = `${curH.toFixed(2)}px`;
+        r.el.style.transform = `translateY(${r.y.x.toFixed(2)}px) scale(${r.s.x.toFixed(4)})`;
+        r.el.style.opacity = clamp(r.o.x, 0, 1).toFixed(3);
+        r.el.style.pointerEvents = r.o.t > 0.5 ? 'auto' : 'none';
+
+        r.thumb.style.width = `${(48 + q * (W - 28 - 48)).toFixed(2)}px`;
+        r.thumb.style.height = `${Math.max(48, 48 + p * 56).toFixed(2)}px`;
+        r.thumb.style.borderRadius = `${(12 + q * 4).toFixed(2)}px`;
+        if (r.thumbTitle) {
+          const titleReveal = clamp((q - 0.28) / 0.55, 0, 1);
+          r.thumbTitle.style.maxWidth = `${(q * 280).toFixed(1)}px`;
+          r.thumbTitle.style.marginLeft = `${(q * 10).toFixed(1)}px`;
+          r.thumbTitle.style.opacity = titleReveal.toFixed(3);
+        }
+
+        r.head.style.transform = `translate(${(76 - 60 * q).toFixed(2)}px, ${(18 + 112 * p).toFixed(2)}px)`;
+        r.badge.style.transform = `translateY(${(24 + 106 * p).toFixed(2)}px)`;
+
+        const a = clamp(r.a.x, 0, 1);
+        r.more.style.opacity = a.toFixed(3);
+        r.more.style.transform = `translateY(${((1 - r.a.x) * 10).toFixed(2)}px)`;
+      });
+      list.style.height = `${Math.max(BASE_H, open >= 0 ? maxH : BASE_H).toFixed(0)}px`;
+    }
+
+    expandRafMap.set(container, requestAnimationFrame(frame));
+  }
+
+  expandRafMap.set(container, requestAnimationFrame(frame));
+}
+
+// --- AI News Analysis Expand Cards Renderer ---
+function renderAIInsightCards(insightText) {
+  const container = document.getElementById('insight-markdown');
+  if (!container) return;
+
+  if (!insightText || !insightText.trim()) {
+    container.innerHTML = '';
+    return;
+  }
+
+  // Split markdown by top-level ## headings
+  const sections = [];
+  const lines = insightText.split(/\r?\n/);
+  let current = null;
+
+  for (const line of lines) {
+    const h2Match = line.match(/^##\s+(.+)$/);
+    if (h2Match) {
+      if (current) sections.push(current);
+      current = { title: h2Match[1].trim(), lines: [] };
+    } else if (current) {
+      current.lines.push(line);
+    }
+  }
+  if (current) sections.push(current);
+
+  if (sections.length === 0) {
+    container.innerHTML = customMarkdownParser(insightText);
+    return;
+  }
+
+  const companyName = (document.getElementById('result-company-name')?.textContent) || '선택 종목';
+  const impact = detectMarketImpact(insightText);
+  const impactAv = impact === 'positive' ? '8' : (impact === 'concern' ? '4' : '5');
+
+  const metaPresets = [
+    {
+      av: '6',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`
+    },
+    {
+      av: impactAv,
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>`
+    },
+    {
+      av: '10',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`
+    }
+  ];
+
+  const cards = sections.map((sec, idx) => {
+    const preset = metaPresets[idx % metaPresets.length];
+    const cleanTitle = sec.title.replace(/^\d+\.\s*/, '');
+    const rawBody = sec.lines.join('\n').trim();
+
+    // Extract clean 1-line summary for collapsed header
+    const firstNonEmpty = sec.lines
+      .map(l => l.replace(/^[-*]\s+/, '').replace(/\*\*/g, '').replace(/\[(\d+)\]/g, '').trim())
+      .find(l => l.length > 0) || cleanTitle;
+
+    // Extract bullet items or fall back to parsed markdown HTML
+    const bulletLines = sec.lines
+      .map(l => l.trim())
+      .filter(l => /^[-*]\s+/.test(l))
+      .map(l => l.replace(/^[-*]\s+/, ''));
+
+    const bodyHtml = bulletLines.length > 0
+      ? `<ul class="threec-ex-bullets">${bulletLines.map(b =>
+          `<li>${b.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</li>`
+        ).join('')}</ul>`
+      : `<div class="markdown-body">${customMarkdownParser(rawBody)}</div>`;
+
+    const countLabel = bulletLines.length > 0 ? `${bulletLines.length}개 포인트` : '상세 보기';
+
+    return {
+      av: preset.av,
+      icon: preset.icon,
+      label: cleanTitle,
+      bannerTitle: cleanTitle,
+      signal: firstNonEmpty,
+      badge: countLabel,
+      bodyHtml
+    };
+  });
+
+  mountExpandCards(container, cards, companyName);
+}
+
+// --- 3C Analysis Renderer (Expand Card with Spring Motion) ---
 function render3CAnalysis(threeC, sources = []) {
   const container = document.getElementById('threec-container');
   if (!container) return;
@@ -796,42 +1651,45 @@ function render3CAnalysis(threeC, sources = []) {
   const cardDefs = [
     {
       key: 'customer',
-      accent: 'threec-customer',
-      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`
+      av: '2',
+      kicker: 'CUSTOMER · 수요/시장',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`
     },
     {
       key: 'company',
-      accent: 'threec-company',
-      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M3 9h18M9 21V9"/></svg>`
+      av: '8',
+      kicker: 'COMPANY · 기업 역량',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M3 9h18M9 21V9"/></svg>`
     },
     {
       key: 'competitor',
-      accent: 'threec-competitor',
-      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`
+      av: '4',
+      kicker: 'COMPETITOR · 경쟁 구도',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`
     }
   ];
 
-  const html = `
-    <div class="threec-grid">
-      ${cardDefs.map(({ key, accent, icon }) => {
-        const item = threeC[key];
-        if (!item) return '';
-        const bullets = (item.bullets || []).map(b =>
-          `<li>${b.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`
-        ).join('');
-        return `
-          <div class="threec-card ${accent}">
-            <div class="threec-card-header">
-              <span class="threec-icon">${icon}</span>
-              <span class="threec-label">${item.label || key}</span>
-            </div>
-            <p class="threec-signal">${(item.signal || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
-            <ul class="threec-bullets">${bullets}</ul>
-          </div>`;
-      }).join('')}
-    </div>`;
+  const cards = cardDefs
+    .filter(({ key }) => !!threeC[key])
+    .map(({ key, av, kicker, icon }) => {
+      const item = threeC[key];
+      const label = item.label || kicker;
+      return {
+        av,
+        icon,
+        label,
+        bannerTitle: label,
+        signal: item.signal || '',
+        bullets: item.bullets || []
+      };
+    });
 
-  container.innerHTML = html;
+  if (cards.length === 0) {
+    container.innerHTML = `<p class="threec-empty">3C 전략 분석 데이터가 없습니다.</p>`;
+    return;
+  }
+
+  mountExpandCards(container, cards, companyName);
 }
 
 // ── Market Intelligence Panel ─────────────────────────────────────────────
@@ -1115,21 +1973,28 @@ function formatModelName(modelName) {
 // Extract market impact classification from AI response
 function detectMarketImpact(text) {
   const cleanText = text.toLowerCase();
-  
-  if (cleanText.includes('시장 영향: 긍정적') || cleanText.includes('전체 시장 영향: 긍정적') || cleanText.includes('시장 영향 카테고리: 긍정적') || cleanText.includes('긍정적')) {
-    // Basic verification: since "긍정적" might be referenced elsewhere, let's look closer
-    // If "긍정적" appears within the "시장 영향 분석" segment
-    if (cleanText.indexOf('긍정적') < cleanText.indexOf('투자자 인사이트')) {
-      return 'positive';
-    }
+
+  // Check explicit rating lines first to avoid false matches inside rationale text
+  if (/종합 시장 영향\s*[:：]\s*\*?\*?우려됨|overall market impact rating\s*[:：]\s*\*?\*?우려됨|시장 영향\s*[:：]\s*우려됨/.test(cleanText)) {
+    return 'concern';
   }
-  if (cleanText.includes('시장 영향: 우려됨') || cleanText.includes('전체 시장 영향: 우려됨') || cleanText.includes('우려됨') || cleanText.includes('부정적')) {
-    if (cleanText.indexOf('우려됨') < cleanText.indexOf('투자자 인사이트') || cleanText.indexOf('부정적') < cleanText.indexOf('투자자 인사이트')) {
-      return 'concern';
-    }
+  if (/종합 시장 영향\s*[:：]\s*\*?\*?중립적|overall market impact rating\s*[:：]\s*\*?\*?중립적|시장 영향\s*[:：]\s*중립적/.test(cleanText)) {
+    return 'neutral';
   }
-  
-  // Default fallback is neutral
+  if (/종합 시장 영향\s*[:：]\s*\*?\*?긍정적|overall market impact rating\s*[:：]\s*\*?\*?긍정적|시장 영향\s*[:：]\s*긍정적/.test(cleanText)) {
+    return 'positive';
+  }
+
+  const insightIdx = cleanText.indexOf('투자자 인사이트');
+  const limitIdx = insightIdx > -1 ? insightIdx : cleanText.length;
+
+  if (cleanText.includes('우려됨') && cleanText.indexOf('우려됨') < limitIdx) {
+    return 'concern';
+  }
+  if (cleanText.includes('긍정적') && cleanText.indexOf('긍정적') < limitIdx) {
+    return 'positive';
+  }
+
   return 'neutral';
 }
 
@@ -1290,7 +2155,49 @@ function renderSources(sources) {
 
   if (uniqueSources.length === 0) return;
 
-  // Find the heading that contains "핵심 뉴스 요약" or "Key News Summary"
+  const sectionHeader = document.querySelector('.insight-ai-section .insight-section-header');
+
+  // Remove any previously rendered source badges
+  document.querySelectorAll('.insight-ai-section .inline-source-badges, .insight-ai-section .insight-header-right').forEach(el => {
+    if (el.classList.contains('insight-header-right')) {
+      el.querySelectorAll('.inline-source-badges').forEach(b => b.remove());
+    } else {
+      el.remove();
+    }
+  });
+
+  const badgeContainer = document.createElement('span');
+  badgeContainer.className = 'inline-source-badges';
+
+  uniqueSources.forEach((source, index) => {
+    const badge = document.createElement('a');
+    badge.className = 'inline-source-badge';
+    badge.href = source.url;
+    badge.target = '_blank';
+    badge.rel = 'noopener noreferrer';
+    badge.dataset.sourceIdx = String(index + 1);
+    badge.textContent = index + 1;
+    badge.title = source.title;
+    badgeContainer.appendChild(badge);
+  });
+
+  if (sectionHeader) {
+    let rightSlot = sectionHeader.querySelector('.insight-header-right');
+    if (!rightSlot) {
+      rightSlot = document.createElement('div');
+      rightSlot.className = 'insight-header-right';
+      const hint = sectionHeader.querySelector('.insight-section-hint');
+      if (hint) {
+        hint.textContent = '출처';
+        rightSlot.appendChild(hint);
+      }
+      sectionHeader.appendChild(rightSlot);
+    }
+    rightSlot.appendChild(badgeContainer);
+    return;
+  }
+
+  // Fallback for markdown-only headings
   const headings = insightMarkdown.querySelectorAll('h1, h2, h3, h4');
   let targetHeading = null;
   for (const h of headings) {
@@ -1300,33 +2207,12 @@ function renderSources(sources) {
       break;
     }
   }
-
-  // If not found, fallback to the very first heading
-  if (!targetHeading && headings.length > 0) {
-    targetHeading = headings[0];
-  }
-
+  if (!targetHeading && headings.length > 0) targetHeading = headings[0];
   if (targetHeading) {
-    const badgeContainer = document.createElement('span');
-    badgeContainer.className = 'inline-source-badges';
-    
-    uniqueSources.forEach((source, index) => {
-      const badge = document.createElement('a');
-      badge.className = 'inline-source-badge';
-      badge.href = source.url;
-      badge.target = '_blank';
-      badge.rel = 'noopener noreferrer';
-      badge.textContent = index + 1;
-      badge.title = source.title; // show title on hover
-      badgeContainer.appendChild(badge);
-    });
-
-    // Make the heading a flex container to align items properly if it isn't already
     targetHeading.style.display = 'flex';
     targetHeading.style.alignItems = 'center';
     targetHeading.style.flexWrap = 'wrap';
     targetHeading.style.gap = '10px';
-    
     targetHeading.appendChild(badgeContainer);
   }
 }
@@ -1872,6 +2758,12 @@ function generateClientMockData(companyName, liveNews) {
   const isApple = lowerQuery === 'apple' || lowerQuery === 'aapl' || lowerQuery === '애플';
   const isSamsung = lowerQuery === 'samsung' || lowerQuery === '삼성전자' || lowerQuery === '삼성';
   const isHynix = lowerQuery === 'sk하이닉스' || lowerQuery === 'hynix' || lowerQuery === '하이닉스';
+  const hasPreset = isABAT || isTesla || isNvidia || isApple || isSamsung || isHynix;
+
+  // Never fabricate a fake AI report when there is neither a preset nor live news
+  if (!hasPreset && (!liveNews || liveNews.length === 0)) {
+    return null;
+  }
 
   let sentiment = '중립적 (Neutral)';
   let sentimentDesc = '';
@@ -1926,7 +2818,7 @@ function generateClientMockData(companyName, liveNews) {
       { title: "Apple Reports Record Services Revenue of $23.9B as Active Device Base Grows - CNBC", url: "https://apple.com", publisher: "CNBC" }
     ];
 
-    summaryBullets = `- **재무 실적 및 성과 (Financials)**: 프리미엄 아이폰 라인업 비중 확대 및 **서비스 부문 사상 최대 매출($23.9B)** 기록에 힙입어 분기 영업이익률 30% 선을 안정적으로 상회하고 있습니다.
+    summaryBullets = `- **재무 실적 및 성과 (Financials)**: 프리미엄 아이폰 라인업 비중 확대 및 **서비스 부문 사상 최대 매출($23.9B)** 기록에 힘입어 분기 영업이익률 30% 선을 안정적으로 상회하고 있습니다.
 - **핵심 사업 및 운영 현황 (Operations)**: 인도 가동 공장의 생산 비중을 기존 7%에서 14% 이상으로 2배 확대하며 글로벌 공급망 병목 리스크를 획기적으로 완화했습니다.
 - **정책, 규제 및 계약 (Regulations & Contracts)**: 유럽 디지털 시장법(DMA) 규제에 선제 대응하기 위해 대체 앱스토어 및 결제 시스템 수수료 모델을 정밀하게 개편 개시했습니다.
 - **미래 성장 프로젝트 및 동력 (Projects)**: 온디바이스 AI 구동 능력을 극대화한 독자 Silicon AP 칩셋 탑재 디바이스 전면 출시 및 생성형 AI 비서 기능의 언어팩 다변화 프로젝트가 활발히 진행 중입니다.`;
@@ -1951,7 +2843,7 @@ function generateClientMockData(companyName, liveNews) {
     : `- **재무 실적 및 성과 (Financials)**: 반도체(DS) 부문의 대폭적인 흑자 회복 및 모바일 부문의 프리미엄 판매 호조에 힘입어 전분기 대비 **영업이익이 45% 급증**했습니다.
 - **핵심 사업 및 운영 현황 (Operations)**: 차세대 메모리 생산을 위한 평택 및 화성 공장의 첨단 공정 라인 가동률을 100% 정상 궤도로 전격 전환 완료했습니다.
 - **정책, 규제 및 계약 (Regulations & Contracts)**: 미국 반도체법(CHIPS Act)에 따른 정부 보조금 수령 자격 심사를 성공적으로 조율하고 텍사스 파운드리 보조금을 확보했습니다.
-- **미래 성장 프로젝트 및 동력 (Projects)**: 3나노 이하 파운드리 게이트올어라운n드(GAA) 공정 2세대 양산 안정화 및 온디바이스 AI 패키지 에코시스템 투자를 가속화하고 있습니다.`;
+- **미래 성장 프로젝트 및 동력 (Projects)**: 3나노 이하 파운드리 게이트올어라운드(GAA) 공정 2세대 양산 안정화 및 온디바이스 AI 패키지 에코시스템 투자를 가속화하고 있습니다.`;
 
     sentiment = '긍정적 (Positive)';
     sentimentDesc = '글로벌 AI 서버 구동용 하이엔드 메모리 반도체 공급 부족 현상의 직접적 수혜 및 미세공정 양산 안정화에 힘입어 실적 레버리지 효과가 최고조에 달할 것으로 판단됩니다.';
@@ -2045,15 +2937,161 @@ function generateClientMockData(companyName, liveNews) {
     sentimentDesc = `중장기 성장 로드맵 및 비즈니스 체질 개선 노력은 고도로 긍정적이나, 금리 인상 장기화 등 거시경제 매크로 불확실성 리스크와 업계 경쟁 심화가 맞물려 단기적으로 주가는 박스권에서 지지선을 탐색하는 흐름을 연출할 수 있습니다.`;
   }
 
-  // Generate dynamic customized investor insights directly tied to actual news topics if available
-  let dynamicRisk = '원자재 인프라 수급 변동 및 대외 경기 둔화 우려 시 단기 마진 회복 속도가 일부 조정될 소지가 존재하므로 유동성 지표 관리가 권장됩니다.';
-  let dynamicOpportunity = '핵심 고부가가치 사업 부문의 체질 개선 작업이 완료된 후 실적 턴어라운드가 강력히 전개될 것이며, 글로벌 공급망 안정화에 힘입어 중장기 기업 가치 동반 상승이 유력합니다.';
+  // Preset company-specific Insights & 3C (avoid repetitive generic boilerplate)
+  let dynamicRisk = '원자재·금리 등 매크로 변수에 따른 단기 마진 변동성을 점검할 필요가 있습니다.';
+  let dynamicOpportunity = '핵심 사업부의 수익성 개선과 신규 수주 모멘텀이 확인될 경우 중장기 기업 가치 재평가가 기대됩니다.';
+  let presetThreeC = null;
 
-  if (liveNews && liveNews.length > 0) {
+  if (isSamsung) {
+    dynamicRisk = 'HBM3E 고객사 퀄테스트 통과 시점 지연 여부 및 파운드리 선단 공정 가동률 회복 속도가 단기 주가 변수입니다.';
+    dynamicOpportunity = 'DS부문 흑자 확대와 3나노 GAA 2세대 수율 안정화가 맞물릴 경우 밸류에이션 정상화가 빠르게 진행될 수 있습니다.';
+    presetThreeC = {
+      customer: {
+        label: "Customer (고객/시장)",
+        signal: "AI 서버용 HBM 및 온디바이스 AI 스마트폰 수요 동반 확대",
+        bullets: [
+          "글로벌 하이퍼스케일러의 AI 데이터센터 증설로 고대역폭 메모리(HBM3E) 조달 수요 급증",
+          "프리미엄 스마트폰 교체 주기와 온디바이스 AI 탑재 확대가 모바일 DRAM 수요를 지지"
+        ]
+      },
+      company: {
+        label: "Company (자사)",
+        signal: "평택·화성 첨단 라인 가동 정상화 및 DS부문 영업이익 반등",
+        bullets: [
+          "메모리 반등과 모바일 프리미엄 믹스 개선으로 전분기 대비 영업이익 45% 급증",
+          "CHIPS Act 텍사스 파운드리 보조금 확보 및 3나노 GAA 2세대 양산 안정화 추진"
+        ]
+      },
+      competitor: {
+        label: "Competitor (경쟁사)",
+        signal: "SK하이닉스·TSMC와의 HBM·파운드리 선단 공정 주도권 경쟁",
+        bullets: [
+          "HBM3E 12단·HBM4 차세대 메모리 시장에서 SK하이닉스·마이크론과의 납품 경쟁 심화",
+          "파운드리 3나노 이하 공정에서 TSMC 대비 대형 팹리스 고객 확보 여부가 핵심 관건"
+        ]
+      }
+    };
+  } else if (isHynix) {
+    dynamicRisk = 'HBM 증설 경쟁에 따른 CAPEX 부담과 내년 이후 공급 과잉 전환 우려가 단기 변동성 요인입니다.';
+    dynamicOpportunity = 'HBM3E 선점 효과와 10나노급 5세대 D램 수율 우위가 유지되는 한 높은 영업이익률 지속이 기대됩니다.';
+    presetThreeC = {
+      customer: {
+        label: "Customer (고객/시장)",
+        signal: "빅테크 AI 가속기용 HBM3E 선제 예약 물량 완판 흐름",
+        bullets: [
+          "주요 AI 칩 설계사들의 연간 HBM 공급 단가 및 캐파 선계약 수요 견조",
+          "서버용 고용량 eSSD 등 AI 인프라 스토리지 수요 동반 확대"
+        ]
+      },
+      company: {
+        label: "Company (자사)",
+        signal: "HBM3E 공급 지배력 기반 메모리 영업이익률 28% 돌파",
+        bullets: [
+          "10나노급 5세대(1b) D램 미세공정 수율 안정화로 수익성 레버리지 극대화",
+          "용인 반도체 클러스터 차세대 클린룸 착공으로 중장기 생산 캐파 선제 확보"
+        ]
+      },
+      competitor: {
+        label: "Competitor (경쟁사)",
+        signal: "삼성전자·마이크론의 HBM3E 12단 추격전 방어 필요",
+        bullets: [
+          "후발 주자들의 HBM3E 퀄 통과 시 단가 협상력 변화 여부 모니터링",
+          "MR-MUF 패키징 기술 우위를 HBM4 세대까지 이어갈 수 있는지가 핵심"
+        ]
+      }
+    };
+  } else if (isNvidia) {
+    dynamicRisk = '대중 수출 통제 규제 강화 및 빅테크 고객사의 자체 ASIC 칩 내재화 움직임이 중기 리스크입니다.';
+    dynamicOpportunity = '블랙웰(Blackwell) 아키텍처 본격 출하와 CUDA 소프트웨어 Lock-in이 데이터센터 독주 체제를 공고히 합니다.';
+    presetThreeC = {
+      customer: {
+        label: "Customer (고객/시장)",
+        signal: "글로벌 클라우드·엔터프라이즈의 생성형 AI 연산 수요 폭증",
+        bullets: [
+          "클라우드 빅테크들의 AI 인프라 CapEx 상향 기조가 GPU 백로그를 견인",
+          "소버린 AI(국가 주도 AI) 및 산업용 디지털 트윈으로 수요처 다변화"
+        ]
+      },
+      company: {
+        label: "Company (자사)",
+        signal: "매출 265% 성장 · 매출총이익률 76%의 압도적 수익 구조",
+        bullets: [
+          "4nm/3nm 선단 파운드리 물량 확보와 블랙웰 가속기 양산 개시로 공급 병목 해소",
+          "CUDA · NIM 등 소프트웨어 플랫폼 생태계로 하드웨어 이상의 해자 구축"
+        ]
+      },
+      competitor: {
+        label: "Competitor (경쟁사)",
+        signal: "AMD MI300 시리즈 및 빅테크 자체 칩(TPU·Trainium) 견제",
+        bullets: [
+          "추론(Inference) 시장에서 AMD 및 클라우드 자체 칩과의 가성비 경쟁 확대",
+          "NVLink·네트워킹 통합 턴키 솔루션으로 클러스터 단위 경쟁 우위 유지"
+        ]
+      }
+    };
+  } else if (isApple) {
+    dynamicRisk = '유럽 DMA 규제에 따른 앱스토어 수수료 모델 변화와 중국 내 스마트폰 점유율 경쟁이 부담 요인입니다.';
+    dynamicOpportunity = 'Apple Intelligence 언어팩 확장과 서비스 부문($23.9B)의 고마진 성장이 실적 하방을 견고히 지지합니다.';
+    presetThreeC = {
+      customer: {
+        label: "Customer (고객/시장)",
+        signal: "프리미엄 아이폰 믹스 확대 및 AI 기반 교체 사이클 개시",
+        bullets: [
+          "온디바이스 AI 기능 탑재를 계기로 구형 기기 사용자의 Pro 라인업 업그레이드 가속",
+          "활성 기기(Active Installed Base) 증가가 서비스 구독 매출로 직결"
+        ]
+      },
+      company: {
+        label: "Company (자사)",
+        signal: "영업이익률 30% 상회 및 인도 생산 비중 14%로 공급망 다변화",
+        bullets: [
+          "서비스 부문 사상 최대 매출($23.9B) 달성으로 하드웨어 경기 민감도 완화",
+          "자체 Silicon AP 칩셋과 인도 생산 거점 2배 확대로 원가·지정학 리스크 분산"
+        ]
+      },
+      competitor: {
+        label: "Competitor (경쟁사)",
+        signal: "삼성 갤럭시 AI 및 화웨이·샤오미와의 프리미엄 점유율 경합",
+        bullets: [
+          "중국 시장 내 로컬 프리미엄 브랜드의 공세 대응이 주요 과제",
+          "자체 생태계(iOS-Mac-Wearables) 연동성과 프라이버시 AI 전략으로 차별화"
+        ]
+      }
+    };
+  } else if (isTesla) {
+    dynamicRisk = '글로벌 전기차 가격 인하 경쟁 지속과 FSD 각국 규제 승인 지연 가능성이 단기 마진 압박 요인입니다.';
+    dynamicOpportunity = 'FSD V12 라이선싱 제휴 및 로보택시 상용화 가시화 시 소프트웨어 기업으로의 밸류에이션 전환이 가능합니다.';
+    presetThreeC = {
+      customer: {
+        label: "Customer (고객/시장)",
+        signal: "IRA 보조금($7,500) 요건 충족 모델 중심의 북미 수요 유지",
+        bullets: [
+          "고금리 환경 속에서도 IRA 세액공제 적용 차종을 중심으로 실구매 가격 경쟁력 확보",
+          "자율주행 FSD V12 구독 및 완성차 업체 대상 라이선싱 수요 확대"
+        ]
+      },
+      company: {
+        label: "Company (자사)",
+        signal: "영업이익률 12.8% 회복 및 4680 배터리 셀 수율 개선",
+        bullets: [
+          "텍사스 4680 셀 수율 향상과 상하이 기가팩토리 연 95만 대 체제 안착",
+          "차세대 로보택시 전용 공정 도입 및 에너지 저장장치(Megapack) 고성장 지속"
+        ]
+      },
+      competitor: {
+        label: "Competitor (경쟁사)",
+        signal: "BYD 등 중국 EV 업체의 가격 공세 및 Waymo와의 자율주행 경쟁",
+        bullets: [
+          "저가형 EV 시장에서 중국 제조사와의 원가 경쟁 심화",
+          "엔비디아·Waymo 진영 대비 대규모 실주행 데이터 기반 End-to-End AI로 승부"
+        ]
+      }
+    };
+  } else if (liveNews && liveNews.length > 0) {
     const headline1 = liveNews[0]?.title || '';
     const headline2 = liveNews[1]?.title || '';
-    dynamicRisk = `실시간 기사인 **"${headline1}"** 보도 내용에 나타난 수급 부담 또는 정책적 요인이 단기 거래량 변동을 자극할 수 있어 리스크 관리가 요구됩니다.`;
-    dynamicOpportunity = `**"${headline2}"** 뉴스에 제시된 신기술 적용 및 가동 영역 확대 계획이 정상 궤도에 오를 경우, 글로벌 공급선 다변화 수혜와 함께 견고한 턴어라운드를 실현할 기회가 존재합니다.`;
+    dynamicRisk = `최근 보도(**"${headline1}"**)에 나타난 수급·규제 변수가 단기 주가 변동성을 키울 수 있어 추이 확인이 필요합니다.`;
+    dynamicOpportunity = `**"${headline2}"** 관련 사업 확장 및 실적 개선 흐름이 확인될 경우 중장기 모멘텀 회복이 기대됩니다.`;
   }
 
   const naverNewsItems = liveNews && liveNews.length > 0 ? liveNews.slice(0, 8).map(n => ({
@@ -2063,37 +3101,34 @@ function generateClientMockData(companyName, liveNews) {
     url: n.url || n.link || ''
   })) : [];
 
-  const headline1 = liveNews?.[0]?.title || `${companyName} 최신 동향`;
-  const headline2 = liveNews?.[1]?.title || `${companyName} 시장 현황`;
-  const headline3 = liveNews?.[2]?.title || `${companyName} 사업 운영`;
+  const headline1 = liveNews?.[0]?.title || `${companyName} 주요 이슈`;
+  const headline2 = liveNews?.[1]?.title || `${companyName} 사업 현황`;
+  const headline3 = liveNews?.[2]?.title || `${companyName} 경쟁 환경`;
   const sentimentLabel = sentiment?.includes('긍정') ? '긍정적' : sentiment?.includes('우려') ? '우려됨' : '중립적';
 
-  const threeC = {
+  const threeC = presetThreeC || {
     customer: {
       label: "Customer (고객/시장)",
-      signal: `시장 수요 신호: ${sentimentLabel}`,
+      signal: `${companyName} 시장 수요 흐름: ${sentimentLabel}`,
       bullets: [
-        `최신 보도 "${headline1}"에 따른 고객·시장 반응 주목 필요`,
-        "신규 제품·서비스 출시에 따른 고객 니즈 변화 및 채택률 동향이 주요 변수",
-        "국내외 핵심 고객층의 구매 결정 사이클과 예산 집행 시기가 단기 매출에 영향"
+        `최근 "${headline1}" 보도 이후 시장 및 고객 반응 추적 필요`,
+        "주요 제품·서비스의 채택률 및 전방 산업 발주 사이클이 단기 매출을 좌우"
       ]
     },
     company: {
       label: "Company (자사)",
-      signal: `기업 펀더멘탈: ${headline2.substring(0, 40)}...`,
+      signal: `${headline2}`,
       bullets: [
-        `"${headline3}" 등 최근 보도 기준, 핵심 사업 부문의 운영 지표 추적 필요`,
-        "원가 효율화 및 고마진 제품 믹스 전환 여부가 수익성 방향성을 결정",
-        "R&D 투자 지속 여부 및 신사업 실행 속도가 중장기 경쟁력을 좌우"
+        `"${headline3}" 기준 핵심 사업부 수익성 및 가동률 점검 필요`,
+        "고부가 포트폴리오 전환과 비용 효율화 속도가 영업이익률 방향을 결정"
       ]
     },
     competitor: {
       label: "Competitor (경쟁사)",
-      signal: "업계 경쟁 구도 모니터링 중",
+      signal: `${companyName} 업종 내 경쟁 포지셔닝 점검`,
       bullets: [
-        "동종 업계 경쟁사들의 기술 격차 및 가격 전략 변화 추이 주시 필요",
-        "시장 점유율 확대를 위한 마케팅·파트너십 전략이 핵심 차별화 포인트",
-        "글로벌 선도 기업과의 기술 및 공급망 경쟁력 격차 분석이 투자 판단에 중요"
+        "동종 업계 선도사 대비 기술 격차·가격 협상력·공급망 안정성 비교 중요",
+        "신규 파트너십 및 차세대 파이프라인 선점 여부가 점유율 변동을 결정"
       ]
     }
   };
@@ -2103,13 +3138,13 @@ function generateClientMockData(companyName, liveNews) {
     insight: `## 1. 핵심 뉴스 요약
 ${summaryBullets}
 
-## 2. Market Impact Analysis
-- **Overall Market Impact Rating: ${sentiment}**
-- **Rationale**: ${sentimentDesc}
+## 2. 시장 영향 분석
+- **종합 시장 영향**: ${sentiment}
+- **핵심 근거**: ${sentimentDesc}
 
-## 3. Investor Insights
-- **Short-term Risks**: ${dynamicRisk}
-- **Long-term Opportunities**: ${dynamicOpportunity}`,
+## 3. 투자자 인사이트
+- **단기 리스크**: ${dynamicRisk}
+- **중장기 기회**: ${dynamicOpportunity}`,
     sources: sources,
     naverNewsItems: naverNewsItems,
     threeC: threeC

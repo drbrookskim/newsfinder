@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Signnith News Finder</title>
-  
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="/style.css">
   <script>
     (function () {
@@ -23,33 +23,35 @@
   </script>
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="dotgoo" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.2" result="b"/>
+      <feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -8"/>
+    </filter>
+  </svg>
 
   <div class="wrap">
-    
-
 
     <!-- Header -->
     <header class="band header-band">
-      <div class="brand-name">
+      <a href="?" class="brand-name" aria-label="Signnith News Finder">
         <img src="./logo.png" alt="Signnith" class="logo-img">
+        <span class="brand-divider" aria-hidden="true"></span>
         <span class="brand-badge">News Finder</span>
-      </div>
-      
+      </a>
+
       <div class="nav-links">
-        <button id="history-toggle-btn" class="nav-btn" data-i18n="nav.history">검색 이력</button>
+        <button id="history-toggle-btn" class="nav-btn" type="button">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></svg>
+          <span data-i18n="nav.history">검색 이력</span>
+        </button>
       </div>
 
       <div class="status-indicator-wrap">
         <div class="status-indicator">
-          ON-DEMAND AI CONNECTED
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>ON-DEMAND AI</span>
         </div>
-        <button id="lang-toggle-btn" class="lang-toggle-btn" aria-label="Language / 언어" title="Language / 언어">
-          <span class="lang-label-side lang-active" id="lang-label-ko">KO</span>
-          <span class="lang-switch-track">
-            <span class="lang-switch-thumb"></span>
-          </span>
-          <span class="lang-label-side lang-inactive" id="lang-label-en">EN</span>
-        </button>
         <button id="theme-toggle-btn" class="nf-theme-btn" type="button" aria-label="테마 변경" title="테마 변경">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 9.8A5.5 5.5 0 0 1 6.2 2.5a5.5 5.5 0 1 0 7.3 7.3z"/></svg>
         </button>
@@ -58,70 +60,116 @@
 
     <!-- History Drawer -->
     <div class="band history-drawer" id="history-dropdown">
-      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--lh);">
-        <h4 style="margin:0;" data-i18n="history.title">최근 분석 이력</h4>
-        <button id="clear-history" class="nav-btn text-red" data-i18n="history.clearAll">모두 지우기</button>
+      <div class="history-drawer-header">
+        <h4 data-i18n="history.title">최근 분석 이력</h4>
+        <button id="clear-history" class="nav-btn text-red" type="button" data-i18n="history.clearAll">모두 지우기</button>
       </div>
       <ul id="history-list" class="history-list">
         <li class="history-empty" data-i18n="history.empty">이력이 존재하지 않습니다</li>
       </ul>
     </div>
 
-    <!-- Search Form -->
+    <!-- Hero & Command Search -->
     <section class="band hero-band">
-      <h1 id="typing-title">
-        Fragments of News,<br>
-        Context through Action.
-      </h1>
-      
-      <form id="search-form" class="search-form" style="margin-top: calc(var(--lh)*2);">
-        <input type="text" id="company-input" class="search-input" data-i18n-placeholder="search.placeholder" placeholder="기업명 입력 (예: 삼성전자, NVIDIA)" required autocomplete="off">
-        <button type="submit" id="submit-btn" class="search-submit" data-i18n="search.submit">AI 분석 시작</button>
+      <div class="hero-copy">
+        <div class="hero-eyebrow">SIGNNITH EQUITY INTELLIGENCE</div>
+        <h1 id="typing-title">
+          Fragments of News,<br>
+          Context through Action.
+        </h1>
+      </div>
+
+      <form id="search-form" class="search-form">
+        <div class="search-input-shell">
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="9" cy="9" r="6"/>
+            <path d="m14 14 4 4"/>
+          </svg>
+          <input type="text" id="company-input" class="search-input" data-i18n-placeholder="search.placeholder" placeholder="기업명 입력 (예: 삼성전자, NVIDIA)" required autocomplete="off">
+          <button type="button" id="clear-input" class="clear-input-btn" aria-label="입력 지우기" style="display:none;">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </button>
+          <button type="submit" id="submit-btn" class="search-submit" data-i18n="search.submit">AI 분석 시작</button>
+        </div>
+        <div id="search-autocomplete" class="search-autocomplete" role="listbox" aria-label="종목 자동완성"></div>
       </form>
+
+      <div class="trending-row" aria-label="추천 종목">
+        <span class="trending-label">POPULAR</span>
+        <div class="trending-chips">
+          <button type="button" class="trending-tag-btn" data-company="삼성전자">삼성전자</button>
+          <button type="button" class="trending-tag-btn" data-company="SK하이닉스">SK하이닉스</button>
+          <button type="button" class="trending-tag-btn" data-company="NVIDIA">NVIDIA</button>
+          <button type="button" class="trending-tag-btn" data-company="Apple">Apple</button>
+          <button type="button" class="trending-tag-btn" data-company="테슬라">테슬라</button>
+          <button type="button" class="trending-tag-btn" data-company="현대차">현대차</button>
+        </div>
+      </div>
     </section>
 
     <!-- Panels -->
     <!-- 1. Idle Panel -->
     <div id="idle-panel" class="band workspace-panel active">
       <div class="feature-block feature-col-1">
+        <div class="feature-index">GROUNDING</div>
         <h4 data-i18n="feature1.title">01 실시간 구글 검색 접지</h4>
-        <p class="mt-lh" data-i18n="feature1.desc">검색 결과 기반의 실시간 팩트만을 참조하는 Grounding 기술을 통해 비즈니스 정보 왜곡 및 환각을 차단합니다.</p>
+        <p data-i18n="feature1.desc">검색 결과 기반의 실시간 팩트만을 참조하는 Grounding 기술을 통해 비즈니스 정보 왜곡 및 환각을 차단합니다.</p>
       </div>
       <div class="feature-block feature-col-2">
+        <div class="feature-index">SENTIMENT</div>
         <h4 data-i18n="feature2.title">02 시장 영향 신속 진단</h4>
-        <p class="mt-lh" data-i18n="feature2.desc">보도 뉴스의 함의를 종합 진단하여 긍정적, 중립적, 혹은 우려됨 단계의 직관적 지표를 제공합니다.</p>
+        <p data-i18n="feature2.desc">보도 뉴스의 함의를 종합 진단하여 긍정적, 중립적, 혹은 우려됨 단계의 직관적 지표를 제공합니다.</p>
       </div>
       <div class="feature-block feature-col-3">
+        <div class="feature-index">STRATEGY</div>
         <h4 data-i18n="feature3.title">03 입체적 투자 리포트</h4>
-        <p class="mt-lh" data-i18n="feature3.desc">핵심 뉴스 요약부터 단기 변동성 리스크, 장기 성장 동력까지 고가독성 마크다운으로 렌더링합니다.</p>
+        <p data-i18n="feature3.desc">핵심 뉴스 요약부터 단기 변동성 리스크, 장기 성장 동력까지 고가독성 마크다운으로 렌더링합니다.</p>
       </div>
     </div>
 
     <!-- 2. Loading Panel -->
     <div id="loading-panel" class="band workspace-panel">
       <div class="loading-message">
+        <div class="loading-stepper" aria-hidden="true">
+          <div id="step-search" class="loading-step active">
+            <span class="step-dot"></span>
+            <span>SEARCH</span>
+          </div>
+          <span class="step-line"></span>
+          <div id="step-analyze" class="loading-step">
+            <span class="step-dot"></span>
+            <span>ANALYZE</span>
+          </div>
+          <span class="step-line"></span>
+          <div id="step-render" class="loading-step">
+            <span class="step-dot"></span>
+            <span>REPORT</span>
+          </div>
+        </div>
         <h2 id="loading-title" data-i18n="loading.title">분석을 준비하고 있습니다...</h2>
-        <p id="loading-desc" style="font-size:24px; font-weight:400; color:var(--c-ink-light);" data-i18n="loading.desc">서버와 통신하여 실시간 검색 단계를 초기화 중입니다.</p>
+        <p id="loading-desc" data-i18n="loading.desc">서버와 통신하여 실시간 검색 단계를 초기화 중입니다.</p>
       </div>
     </div>
 
     <!-- 3. Results Panel -->
     <div id="results-panel" class="band workspace-panel">
-      
-      <div class="dashboard-title-band band" style="margin-bottom: calc(var(--lh)*2);">
-        <h2 style="display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 0;">
-          <span id="result-company-name">기업명</span>
-          <span id="inline-stock-price" style="display:none; align-items: baseline; gap: 12px;">
-            <span id="stock-price" style="font-weight: 700;"></span>
-            <span id="stock-change" style="font-weight: 600;"></span>
-            <span style="display: flex; gap: 4px; align-items: center; transform: translateY(-6px);">
-              <span id="stock-exchange" class="exchange-badge"></span>
-              <span id="stock-market-state" class="market-state-badge"></span>
+
+      <div class="dashboard-title-band band">
+        <div class="dashboard-title-main">
+          <h2>
+            <span id="result-company-name">기업명</span>
+            <span id="inline-stock-price" style="display:none;">
+              <span id="stock-price"></span>
+              <span id="stock-change"></span>
+              <span class="stock-badges-group">
+                <span id="stock-exchange" class="exchange-badge"></span>
+                <span id="stock-market-state" class="market-state-badge"></span>
+              </span>
             </span>
-          </span>
-        </h2>
-        <div class="company-meta" style="margin-top: 8px;">
-          <span id="market-impact-badge" class="three-c-label">시장 영향: 분석중</span>
+          </h2>
+        </div>
+        <div class="company-meta">
+          <span id="market-impact-badge" class="impact-badge impact-neutral">시장 영향: 분석중</span>
           <span id="sector-leader-badge" class="sector-leader-badge" style="display:none;"></span>
         </div>
       </div>
@@ -171,34 +219,37 @@
       </div>
 
       <!-- News Sources (Left Col) -->
-      <div class="news-source-col">
-        <h3 class="mb-lh border-bottom" data-i18n="news.sourcesTitle">실시간 속보 출처</h3>
+      <aside class="news-source-col">
+        <div class="panel-card-header">
+          <h3 data-i18n="news.sourcesTitle">실시간 속보 출처</h3>
+        </div>
         <div id="naver-news-sidebar">
           <p class="news-meta" data-i18n="news.loading">속보를 불러오는 중...</p>
         </div>
-      </div>
+      </aside>
 
-      <!-- AI Analysis (Right Col) -->
-      <div class="insight-col">
-        
-        <div class="mb-lh" style="display:flex; gap:24px; border-bottom: 2px solid var(--c-ink); padding-bottom:16px;">
-          <button id="tab-ai" class="tab-btn active" data-tab="ai" data-i18n="tabs.aiAnalysis">AI 뉴스 분석</button>
-          <button id="tab-3c" class="tab-btn" data-tab="3c" data-i18n="tabs.threeC">3C 전략 분석</button>
-        </div>
-
-        <div id="panel-ai" class="tab-panel active">
+      <!-- AI Analysis & 3C Strategy (Right Col — Executive Brief + 3C Expand Cards) -->
+      <section class="insight-col">
+        <div class="insight-section insight-ai-section">
+          <div class="insight-section-header">
+            <h3 data-i18n="tabs.aiAnalysis">AI 뉴스 분석</h3>
+            <span class="insight-section-hint">핵심 브리핑 · 출처 호버로 원문 확인</span>
+          </div>
           <div class="markdown-body" id="insight-markdown">
             <!-- Dynamically populated -->
           </div>
         </div>
 
-        <div id="panel-3c" class="tab-panel">
+        <div class="insight-section insight-3c-section">
+          <div class="insight-section-header">
+            <h3 data-i18n="tabs.threeC">3C 전략 분석</h3>
+            <span class="insight-section-hint">카드를 클릭해 상세 보기</span>
+          </div>
           <div id="threec-container">
             <p data-i18n="analysis.waiting">분석 결과를 기다리는 중...</p>
           </div>
         </div>
-
-      </div>
+      </section>
     </div>
 
     <!-- 4. Error Panel -->
@@ -206,7 +257,7 @@
       <div class="error-message">
         <h2 id="error-title" data-i18n="error.title">분석에 실패하였습니다</h2>
         <p id="error-desc" data-i18n="error.desc">일시적인 네트워크 장애나 설정 오류로 요청을 수행하지 못했습니다.</p>
-        <button id="retry-btn" class="search-submit" style="margin-top:24px;" data-i18n="error.retry">다시 시도하기</button>
+        <button id="retry-btn" class="search-submit" type="button" data-i18n="error.retry">다시 시도하기</button>
       </div>
     </div>
 
@@ -214,7 +265,10 @@
 
   <!-- Bottom Marquee Ticker -->
   <div class="marquee-bar" id="marquee-bar">
-    <div class="marquee-label">RECENT</div>
+    <div class="marquee-label">
+      <span class="marquee-dot" aria-hidden="true"></span>
+      <span>RECENT</span>
+    </div>
     <div class="marquee-viewport">
       <div class="marquee-track" id="marquee-track">
         <!-- Dynamically populated by JS -->

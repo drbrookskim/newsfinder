@@ -765,6 +765,7 @@ async function fetchNaverFinance(ticker) {
     
     return {
       ticker: ticker,
+      name: data.stockName || null,
       exchange: data.stockExchangeName || 'KRX',
       price: currentPrice,
       previousClose: previousClose,
@@ -1024,6 +1025,7 @@ async function fetchYahooFinance(ticker) {
       
       return {
         ticker: meta.symbol || ticker,
+        name: meta.shortName || meta.longName || null,
         exchange: meta.fullExchangeName || meta.exchangeName || '',
         price: currentPrice,
         previousClose,

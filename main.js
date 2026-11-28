@@ -334,17 +334,37 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const suiteCtx = window.SignnithSuite ? window.SignnithSuite.readSuiteContext() : null;
     const urlParams = new URLSearchParams(window.location.search);
-    const tickerParam = (suiteCtx && (suiteCtx.name || suiteCtx.ticker)) || urlParams.get('name') || urlParams.get('ticker');
-    if (tickerParam) {
-      const query = decodeURIComponent(tickerParam).trim();
-      if (query) {
-        companyInput.value = query;
+    const rawName = (suiteCtx && suiteCtx.name) || urlParams.get('name') || urlParams.get('company') || urlParams.get('q') || '';
+    const rawTicker = (suiteCtx && suiteCtx.ticker) || urlParams.get('ticker') || '';
+
+    let resolvedQuery = '';
+    if (rawName || rawTicker) {
+      const normalized = normalizeSignnithStockQuery({ name: rawName, ticker: rawTicker });
+      resolvedQuery = normalized.query;
+
+      const startIncomingSearch = (q) => {
+        if (!q) return;
+        companyInput.value = q;
         if (clearInputBtn) {
           clearInputBtn.style.display = 'flex';
         }
-        performAnalysis(query);
+        performAnalysis(q);
+      };
+
+      if (normalized.needsLookup) {
+        if (normalized.query) {
+          companyInput.value = normalized.query;
+          if (clearInputBtn) clearInputBtn.style.display = 'flex';
+        }
+        resolveIncomingSignnithQuery({ name: rawName, ticker: rawTicker }).then((finalQuery) => {
+          resolvedQuery = finalQuery || normalized.query;
+          startIncomingSearch(resolvedQuery);
+        });
+      } else if (resolvedQuery) {
+        startIncomingSearch(resolvedQuery);
       }
     }
+
     const ctxBar = document.getElementById('signnithContextBar');
     const ctxText = document.getElementById('signnithContextText');
     const fbBtn = document.getElementById('sendSignnithFeedbackBtn');
@@ -357,11 +377,12 @@ document.addEventListener('DOMContentLoaded', () => {
         : `<strong>Signnith</strong>에서 전달된 종목 컨텍스트`;
       ctxBar.style.display = 'flex';
       if (fbBtn && window.SignnithSuite) {
-          const openFeedback = () => {
-          const fb = window.__nfLatestFeedback || { ticker: tickerParam || '', score: 0, summary: 'impact=neutral' };
+        const openFeedback = () => {
+          const fallbackTicker = safeDecodeParam(rawTicker) || resolvedQuery || '';
+          const fb = window.__nfLatestFeedback || { ticker: fallbackTicker, score: 0, summary: 'impact=neutral' };
           const isDark = document.documentElement.classList.contains('dark');
           const url = window.SignnithSuite.buildFeedbackUrl('newsfinder', {
-            ticker: fb.ticker || tickerParam || '',
+            ticker: fallbackTicker || fb.ticker || '',
             theme: isDark ? 'dark' : 'light',
             signalId: sig && sig.signalId ? sig.signalId : '',
             feedbackScore: fb.score,
@@ -468,6 +489,199 @@ const STOCK_SUGGESTIONS = [
   { name: 'Coinbase', en: '코인베이스', ticker: 'COIN', market: 'NASDAQ' },
   { name: 'American Battery', en: '아메리칸 배터리', ticker: 'ABAT', market: 'NASDAQ' }
 ];
+
+const SIGNNITH_STOCK_ALIASES = {
+  // US ticker & name aliases -> canonical self-search format
+  'goog': 'Alphabet',
+  'abml': 'American Battery',
+  'american battery technology': 'American Battery',
+  'american battery technology company': 'American Battery',
+  'taiwan semiconductor manufacturing': 'TSMC',
+  'alphabet class a': 'Alphabet',
+  'alphabet class c': 'Alphabet',
+  'meta platforms': 'Meta',
+  'palantir technologies': 'Palantir',
+  'crowdstrike holdings': 'CrowdStrike',
+  'coinbase global': 'Coinbase',
+  // Korean name & ticker aliases -> canonical self-search format
+  '현대자동차': '현대차',
+  '기아자동차': '기아',
+  '네이버': 'NAVER',
+  '포스코': 'POSCO홀딩스',
+  '포스코홀딩스': 'POSCO홀딩스',
+  '신한금융': '신한지주',
+  '042660': '한화오션', '한화오션': '한화오션', 'hanwha ocean': '한화오션',
+  '010140': '삼성중공업', '삼성중공업': '삼성중공업', 'samsung heavy industries': '삼성중공업',
+  '009540': 'HD한국조선해양', 'hd한국조선해양': 'HD한국조선해양',
+  '267250': 'HD현대', 'hd현대': 'HD현대',
+  '012330': '현대모비스', '현대모비스': '현대모비스', 'hyundai mobis': '현대모비스',
+  '006400': '삼성SDI', '삼성sdi': '삼성SDI', 'samsung sdi': '삼성SDI',
+  '096770': 'SK이노베이션', 'sk이노베이션': 'SK이노베이션', 'sk innovation': 'SK이노베이션',
+  '323410': '카카오뱅크', '카카오뱅크': '카카오뱅크', 'kakaobank': '카카오뱅크',
+  '064350': '현대로템', '현대로템': '현대로템', 'hyundai rotem': '현대로템',
+  '079550': 'LIG넥스원', 'lig넥스원': 'LIG넥스원', 'lig nex1': 'LIG넥스원',
+  '066570': 'LG전자', 'lg전자': 'LG전자', 'lg electronics': 'LG전자',
+  '051910': 'LG화학', 'lg화학': 'LG화학', 'lg chem': 'LG화학',
+  '259960': '크래프톤', '크래프톤': '크래프톤', 'krafton': '크래프톤',
+  '352820': '하이브', '하이브': '하이브', 'hybe': '하이브',
+  '017670': 'SK텔레콤', 'sk텔레콤': 'SK텔레콤', 'sk telecom': 'SK텔레콤',
+  '030200': 'KT', '033780': 'KT&G',
+  '086520': '에코프로', '에코프로': '에코프로', 'ecopro': '에코프로',
+  '247540': '에코프로비엠', '에코프로비엠': '에코프로비엠', 'ecopro bm': '에코프로비엠',
+  '196170': '알테오젠', '알테오젠': '알테오젠', 'alteogen': '알테오젠',
+  '028300': 'HLB',
+  '058470': '리노공업', '리노공업': '리노공업',
+  '394280': '오픈엣지테크놀로지', '오픈엣지테크놀로지': '오픈엣지테크놀로지',
+  '319660': '피에스케이', '피에스케이': '피에스케이',
+  '080220': '제주반도체', '제주반도체': '제주반도체',
+  '093370': '후성', '후성': '후성',
+  '086390': '유니테스트', '유니테스트': '유니테스트',
+  '232140': '와이씨', '와이씨': '와이씨',
+};
+
+function safeDecodeParam(value) {
+  const str = String(value || '').trim();
+  if (!str) return '';
+  try {
+    return decodeURIComponent(str).trim();
+  } catch (_) {
+    return str;
+  }
+}
+
+function normalizeTickerCode(rawTicker) {
+  let t = safeDecodeParam(rawTicker).toUpperCase();
+  if (!t) return { full: '', base: '', isKorean: false };
+  t = t.replace(/^(KRX|KOSPI|KOSDAQ|NASDAQ|NYSE|AMEX):/i, '').trim();
+  const krxMatch = t.match(/^(\d{6})\.(KS|KQ)$/i);
+  if (krxMatch) {
+    return { full: `${krxMatch[1]}.${krxMatch[2].toUpperCase()}`, base: krxMatch[1], isKorean: true };
+  }
+  if (/^\d{6}$/.test(t)) {
+    return { full: `${t}.KS`, base: t, isKorean: true };
+  }
+  return { full: t, base: t, isKorean: false };
+}
+
+function stripCorporateNoise(rawName) {
+  let s = safeDecodeParam(rawName);
+  let extractedTicker = '';
+
+  // Extract trailing parenthesized ticker, e.g. "삼성전자 (005930)" or "NVIDIA (NVDA)"
+  const parenTickerMatch = s.match(/\s*\(([A-Za-z0-9.\-]{1,12})\)\s*$/);
+  if (parenTickerMatch && (/\d{6}/.test(parenTickerMatch[1]) || /^[A-Z0-9.\-]{1,6}$/.test(parenTickerMatch[1]))) {
+    extractedTicker = parenTickerMatch[1];
+    s = s.slice(0, parenTickerMatch.index).trim();
+  }
+
+  // Strip Korean corporate markers
+  s = s.replace(/^(주식회사|\(주\)|㈜|\(유\)|유한회사)\s*/g, '')
+       .replace(/\s*(주식회사|\(주\)|㈜|\(유\)|유한회사)$/g, '')
+       .trim();
+
+  // Strip English/global share class and corporate suffixes
+  let stripped = s;
+  const shareClassRe = /[,\s]+(class\s+[a-c]|common\s+stock|ordinary\s+shares|adr|ads)\.?$/i;
+  const suffixRe = /[,\s]+(co\.?,?\s*ltd\.?|inc\.?|incorporated|corp\.?|corporation|ltd\.?|limited|llc|plc|l\.?p\.?|s\.?a\.?|ag|nv|se|holdings|group|company)\.?$/i;
+  for (let i = 0; i < 4; i++) {
+    const next = stripped
+      .replace(shareClassRe, '')
+      .replace(suffixRe, '')
+      .replace(/[,\s.]+$/, '')
+      .trim();
+    if (next === stripped) break;
+    stripped = next;
+  }
+
+  return {
+    cleanName: s,
+    strippedName: stripped || s,
+    extractedTicker
+  };
+}
+
+/**
+ * Normalizes stock data received from Signnith (suite context or URL params)
+ * into the exact same canonical format produced by News Finder's own search UI.
+ */
+function normalizeSignnithStockQuery({ name = '', ticker = '' }) {
+  const { cleanName, strippedName, extractedTicker } = stripCorporateNoise(name);
+  const tickerInfo = normalizeTickerCode(ticker || extractedTicker);
+
+  // If `name` itself was actually a ticker (e.g. name="005930.KS" or name="NVDA")
+  const nameAsTicker = !tickerInfo.base && cleanName ? normalizeTickerCode(cleanName) : { full: '', base: '', isKorean: false };
+  const effectiveTicker = tickerInfo.base ? tickerInfo : nameAsTicker;
+
+  // 1) Match canonical entry in STOCK_SUGGESTIONS by ticker
+  if (effectiveTicker.base) {
+    const byTicker = STOCK_SUGGESTIONS.find(
+      (item) => item.ticker.toUpperCase() === effectiveTicker.base || item.ticker.toUpperCase() === effectiveTicker.full
+    );
+    if (byTicker) return { query: byTicker.name, needsLookup: false };
+  }
+
+  // 2) Match canonical entry in STOCK_SUGGESTIONS by name (before & after stripping suffixes)
+  const nameCandidates = [cleanName, strippedName].filter(Boolean).map((v) => v.toLowerCase());
+  for (const candidate of nameCandidates) {
+    const byName = STOCK_SUGGESTIONS.find(
+      (item) => item.name.toLowerCase() === candidate || item.en.toLowerCase() === candidate
+    );
+    if (byName) return { query: byName.name, needsLookup: false };
+  }
+
+  // 3) Match extended alias map (ticker or name)
+  if (effectiveTicker.base && SIGNNITH_STOCK_ALIASES[effectiveTicker.base.toLowerCase()]) {
+    return { query: SIGNNITH_STOCK_ALIASES[effectiveTicker.base.toLowerCase()], needsLookup: false };
+  }
+  for (const candidate of nameCandidates) {
+    if (SIGNNITH_STOCK_ALIASES[candidate]) {
+      return { query: SIGNNITH_STOCK_ALIASES[candidate], needsLookup: false };
+    }
+  }
+
+  // 4) Korean ticker without Korean name (e.g. ticker="042660.KS" with no name or English-only name)
+  const hasHangul = /[가-힣]/.test(strippedName);
+  const isNameJustTicker = !strippedName || /^\d{6}(\.(KS|KQ))?$/i.test(strippedName);
+  if (effectiveTicker.isKorean && (!hasHangul || isNameJustTicker)) {
+    return {
+      query: isNameJustTicker ? effectiveTicker.base : strippedName,
+      needsLookup: true
+    };
+  }
+
+  // 5) Fallback to stripped company name or clean ticker
+  return {
+    query: strippedName || effectiveTicker.base || cleanName,
+    needsLookup: false
+  };
+}
+
+async function resolveIncomingSignnithQuery({ name = '', ticker = '' }) {
+  const syncResult = normalizeSignnithStockQuery({ name, ticker });
+  if (!syncResult.needsLookup) return syncResult.query;
+
+  const lookupTarget = normalizeTickerCode(ticker).full || syncResult.query;
+  if (!lookupTarget) return syncResult.query;
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch(`${API_BASE}/api/stock-price?company=${encodeURIComponent(lookupTarget)}`, {
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.found && data.name) {
+        const { strippedName } = stripCorporateNoise(data.name);
+        if (strippedName) return strippedName;
+      }
+    }
+  } catch (e) {
+    console.warn('[Signnith] Failed to resolve ticker name:', e.message);
+  }
+  return syncResult.query;
+}
 
 // --- Event Listeners Setup ---
 function setupEventListeners() {

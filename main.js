@@ -334,6 +334,28 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const suiteCtx = window.SignnithSuite ? window.SignnithSuite.readSuiteContext() : null;
     const urlParams = new URLSearchParams(window.location.search);
+    const _uNameParam = (suiteCtx && suiteCtx.user && suiteCtx.user.name) || urlParams.get('u_name') || '';
+    const _uAvatarParam = (suiteCtx && suiteCtx.user && suiteCtx.user.avatar) || urlParams.get('u_avatar') || '';
+    let _suiteUser = null;
+    if (_uNameParam) {
+      _suiteUser = { name: _uNameParam, avatar: _uAvatarParam };
+      try { sessionStorage.setItem('nf_suite_user', JSON.stringify(_suiteUser)); } catch (_) {}
+    } else {
+      try { _suiteUser = JSON.parse(sessionStorage.getItem('nf_suite_user') || 'null'); } catch (_) {}
+    }
+    const _userChip = document.getElementById('suiteUserChip');
+    if (_userChip && _suiteUser && _suiteUser.name) {
+      const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      const init = esc(_suiteUser.name.slice(0, 1) || '?');
+      _userChip.innerHTML = (_suiteUser.avatar ? `<img src="${esc(_suiteUser.avatar)}" alt="" referrerpolicy="no-referrer">` : `<span class="suite-user-chip__fallback">${init}</span>`) + `<span>${esc(_suiteUser.name)}</span>`;
+      _userChip.style.display = 'inline-flex';
+      _userChip.addEventListener('click', () => {
+        if (confirm('Signnith 로그인 연동을 해제하시겠습니까?')) {
+          try { sessionStorage.removeItem('nf_suite_user'); } catch (_) {}
+          _userChip.style.display = 'none';
+        }
+      });
+    }
     const rawName = (suiteCtx && suiteCtx.name) || urlParams.get('name') || urlParams.get('company') || urlParams.get('q') || '';
     const rawTicker = (suiteCtx && suiteCtx.ticker) || urlParams.get('ticker') || '';
 

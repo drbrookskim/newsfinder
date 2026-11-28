@@ -1141,6 +1141,7 @@ async function performAnalysis(companyName) {
               const finalInsight = event.insight || streamedText;
               const impact = detectMarketImpact(finalInsight);
               updateImpactBadge(impact);
+              updateLatestFeedback(companyName, impact, event.sources);
 
               // Render Naver News Sidebar immediately
               const items = (event.naverNewsItems && event.naverNewsItems.length > 0) ? event.naverNewsItems : event.sources;
@@ -1307,15 +1308,7 @@ function renderResults(companyName, data) {
   const insightText = data.insight || '';
   const impact = detectMarketImpact(insightText);
   updateImpactBadge(impact);
-  try {
-    const score = impact === 'positive' ? 0.7 : impact === 'concern' ? -0.7 : 0;
-    const srcCount = Array.isArray(data.sources) ? data.sources.length : 0;
-    window.__nfLatestFeedback = {
-      ticker: companyName,
-      score,
-      summary: `impact=${impact},sources=${srcCount}`
-    };
-  } catch (_) {}
+  updateLatestFeedback(companyName, impact, data.sources);
 
   // Parse and display AI News Analysis as 2x2 Editorial Card Grid
   renderAIInsightGrid(insightText, data.sources);
@@ -2323,27 +2316,41 @@ function formatModelName(modelName) {
 }
 
 // Extract market impact classification from AI response
+function updateLatestFeedback(companyName, impact, sources) {
+  try {
+    const score = impact === 'positive' ? 0.7 : impact === 'concern' ? -0.7 : 0;
+    const srcCount = Array.isArray(sources) ? sources.length : 0;
+    window.__nfLatestFeedback = {
+      ticker: companyName,
+      score,
+      summary: `impact=${impact},sources=${srcCount}`
+    };
+  } catch (_) {}
+}
+
 function detectMarketImpact(text) {
-  const cleanText = text.toLowerCase();
+  const cleanText = String(text || '').toLowerCase();
 
   // Check explicit rating lines first to avoid false matches inside rationale text
-  if (/종합 시장 영향\s*[:：]\s*\*?\*?우려됨|overall market impact rating\s*[:：]\s*\*?\*?우려됨|시장 영향\s*[:：]\s*우려됨/.test(cleanText)) {
+  if (/(종합 시장 영향|overall market impact(?: rating)?|시장 영향|market impact)\s*[:：]\s*\*?\*?(우려됨|concerning|concern|negative)\b/i.test(cleanText)) {
     return 'concern';
   }
-  if (/종합 시장 영향\s*[:：]\s*\*?\*?중립적|overall market impact rating\s*[:：]\s*\*?\*?중립적|시장 영향\s*[:：]\s*중립적/.test(cleanText)) {
+  if (/(종합 시장 영향|overall market impact(?: rating)?|시장 영향|market impact)\s*[:：]\s*\*?\*?(중립적|neutral)\b/i.test(cleanText)) {
     return 'neutral';
   }
-  if (/종합 시장 영향\s*[:：]\s*\*?\*?긍정적|overall market impact rating\s*[:：]\s*\*?\*?긍정적|시장 영향\s*[:：]\s*긍정적/.test(cleanText)) {
+  if (/(종합 시장 영향|overall market impact(?: rating)?|시장 영향|market impact)\s*[:：]\s*\*?\*?(긍정적|positive)\b/i.test(cleanText)) {
     return 'positive';
   }
 
-  const insightIdx = cleanText.indexOf('투자자 인사이트');
-  const limitIdx = insightIdx > -1 ? insightIdx : cleanText.length;
+  const koInsightIdx = cleanText.indexOf('투자자 인사이트');
+  const enInsightIdx = cleanText.indexOf('investor insights');
+  const limitIdx = koInsightIdx > -1 ? koInsightIdx : (enInsightIdx > -1 ? enInsightIdx : cleanText.length);
+  const head = cleanText.slice(0, limitIdx);
 
-  if (cleanText.includes('우려됨') && cleanText.indexOf('우려됨') < limitIdx) {
+  if (head.includes('우려됨') || /\bconcerning\b/.test(head)) {
     return 'concern';
   }
-  if (cleanText.includes('긍정적') && cleanText.indexOf('긍정적') < limitIdx) {
+  if (head.includes('긍정적') || /\bpositive\b/.test(head)) {
     return 'positive';
   }
 

@@ -357,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
         : `<strong>Signnith</strong>에서 전달된 종목 컨텍스트`;
       ctxBar.style.display = 'flex';
       if (fbBtn && window.SignnithSuite) {
-        fbBtn.addEventListener('click', () => {
+        const openFeedback = () => {
           const fb = window.__nfLatestFeedback || { ticker: tickerParam || '', score: 0, summary: 'impact=neutral' };
           const isDark = document.documentElement.classList.contains('dark');
           const url = window.SignnithSuite.buildFeedbackUrl('newsfinder', {
@@ -368,7 +368,61 @@ document.addEventListener('DOMContentLoaded', () => {
             feedbackSummary: fb.summary
           });
           window.open(url, '_blank');
-        });
+        };
+        const txt = fbBtn.querySelector('.db-refine-txt');
+        const spin = fbBtn.querySelector('.db-refine-spin');
+        const done = fbBtn.querySelector('.db-refine-done');
+        const tick = fbBtn.querySelector('.db-refine-tick');
+        if (txt && spin && done && tick) {
+          const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          const S = (x, k = 400, c = 30) => ({ x, v: 0, t: x, k, c: reduce ? 2 * Math.sqrt(k) : c });
+          const step = (s, dt) => { const a = -s.k * (s.x - s.t) - s.c * s.v; s.v += a * dt; s.x += s.v * dt; };
+          const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+          const IDLE_W = 176, LOAD_W = 36, DONE_W = 112, len = 22;
+          tick.style.strokeDasharray = len;
+          tick.style.strokeDashoffset = len;
+          const W = S(IDLE_W, 300, 22), T = S(1, 400, 30), P = S(0, 300, 28), D = S(0, 220, 20), G = S(0, 200, 30), K = S(0, 120, 20);
+          let state = 'idle', rot = 0, raf = 0, last = 0, timers = [];
+          const renderBtn = () => {
+            fbBtn.style.width = W.x.toFixed(2) + 'px';
+            const g = clamp(G.x, 0, 1);
+            fbBtn.style.background = g > 0.01 ? `color-mix(in srgb, var(--db-green) ${(g * 100).toFixed(1)}%, var(--db-inverse))` : '';
+            txt.style.opacity = clamp(T.x, 0, 1).toFixed(3);
+            txt.style.transform = `translateY(${((1 - T.x) * 14).toFixed(2)}px)`;
+            spin.style.opacity = clamp(P.x, 0, 1).toFixed(3);
+            spin.style.transform = `rotate(${rot % 360}deg) scale(${(0.6 + 0.4 * clamp(P.x, 0, 1.2)).toFixed(3)})`;
+            done.style.opacity = clamp(D.x, 0, 1).toFixed(3);
+            done.style.transform = `translateY(${((1 - D.x) * 12).toFixed(2)}px)`;
+            tick.style.strokeDashoffset = (len * (1 - clamp(K.x, 0, 1))).toFixed(2);
+          };
+          const settled = () => state === 'idle' && [W, T, P, D, G, K].every(s => Math.abs(s.x - s.t) < 0.01 && Math.abs(s.v) < 0.01);
+          const loop = (now) => {
+            const dt = Math.min((now - last) / 1000, 1 / 30); last = now;
+            rot += dt * 360 * 1.4;
+            for (let k = 0; k < 4; k++) [W, T, P, D, G, K].forEach(s => step(s, dt / 4));
+            renderBtn();
+            if (!settled()) raf = requestAnimationFrame(loop); else raf = 0;
+          };
+          fbBtn.addEventListener('click', () => {
+            openFeedback();
+            if (state !== 'idle') return;
+            timers.forEach(clearTimeout); timers = [];
+            state = 'load'; T.t = 0; W.t = LOAD_W; P.t = 1;
+            if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); }
+            timers.push(setTimeout(() => {
+              state = 'done'; P.t = 0; W.t = DONE_W; G.t = 1; D.t = 1;
+              fbBtn.setAttribute('aria-label', 'Sent');
+              timers.push(setTimeout(() => { K.t = 1; }, 140));
+            }, 900));
+            timers.push(setTimeout(() => {
+              state = 'idle'; D.t = 0; G.t = 0; K.t = 0; W.t = IDLE_W;
+              fbBtn.removeAttribute('aria-label');
+              timers.push(setTimeout(() => { T.t = 1; }, 120));
+            }, 2800));
+          });
+        } else {
+          fbBtn.addEventListener('click', openFeedback);
+        }
       }
     }
   } catch (e) {

@@ -73,8 +73,10 @@
     <!-- Signnith Orchestrator Context & Feedback Bar -->
     <section id="signnithContextBar" class="band" style="display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 16px;margin-bottom:12px;border-radius:12px;border:1px solid rgba(255,138,0,0.35);background:rgba(255,138,0,0.08);font-size:0.84rem;">
       <div id="signnithContextText" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"></div>
-      <button type="button" id="sendSignnithFeedbackBtn" class="nav-btn" style="border-color:rgba(255,138,0,0.45);">
-        Signnith로 되먹임 전송
+      <button type="button" id="sendSignnithFeedbackBtn" class="db-refine-btn" aria-live="polite">
+        <span class="db-refine-txt">Refine with Signnith</span>
+        <span class="db-refine-spin" aria-hidden="true"></span>
+        <span class="db-refine-done"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="db-refine-tick" d="M5 12.5l4.5 4.5L19 7.5"/></svg><b>Sent</b></span>
       </button>
     </section>
 

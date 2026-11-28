@@ -2616,3 +2616,68 @@ html.dark .marquee-bar {
     transition: none !important;
   }
 }
+
+/* ── Loading Success Button (DesignBookmark) ── */
+.db-refine-btn {
+  --db-inverse: #0e0f11;
+  --db-on-inverse: #f4f3f1;
+  --db-green: #34d17a;
+  --db-on-green: #04140a;
+  position: relative;
+  width: 176px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--db-inverse);
+  color: var(--db-on-inverse);
+  cursor: pointer;
+  overflow: hidden;
+  flex-shrink: 0;
+  font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  user-select: none;
+  -webkit-user-select: none;
+}
+html.dark .db-refine-btn {
+  --db-inverse: #ffffff;
+  --db-on-inverse: #000000;
+}
+.db-refine-txt,
+.db-refine-done {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  will-change: transform, opacity;
+}
+.db-refine-done {
+  color: var(--db-on-green);
+  opacity: 0;
+}
+.db-refine-done svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.db-refine-spin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(0, 0, 0, 0) 0 10%, var(--db-on-inverse) 85%, rgba(0, 0, 0, 0) 85%);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 68%, #000 72%);
+  mask: radial-gradient(circle closest-side, transparent 68%, #000 72%);
+  opacity: 0;
+  will-change: transform, opacity;
+}

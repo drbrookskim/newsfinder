@@ -334,7 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const suiteCtx = window.SignnithSuite ? window.SignnithSuite.readSuiteContext() : null;
     const urlParams = new URLSearchParams(window.location.search);
-    const tickerParam = (suiteCtx && suiteCtx.ticker) || urlParams.get('ticker');
+    const tickerParam = (suiteCtx && (suiteCtx.name || suiteCtx.ticker)) || urlParams.get('name') || urlParams.get('ticker');
     if (tickerParam) {
       const query = decodeURIComponent(tickerParam).trim();
       if (query) {

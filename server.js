@@ -86,6 +86,17 @@ async function fetchSingleFeed(url) {
 }
 
 
+function stripCorporateSuffixes(name) {
+  let s = String(name || '').trim();
+  const suffixRe = /[,\s]+(co\.?,?\s*ltd\.?|inc\.?|incorporated|corp\.?|corporation|ltd\.?|limited|llc|plc|l\.?p\.?|s\.?a\.?|ag|nv|se|holdings|group|company)\.?$/i;
+  for (let i = 0; i < 3; i++) {
+    const next = s.replace(suffixRe, '').replace(/[,\s.]+$/, '').trim();
+    if (next === s) break;
+    s = next;
+  }
+  return s;
+}
+
 // ── Ticker Symbol Resolver ─────────────────────────────────────────────────
 function resolveTickerSymbol(name) {
   const clean = name.trim();
@@ -106,6 +117,7 @@ function resolveTickerSymbol(name) {
   }
   
   const lower = clean.toLowerCase();
+  const strippedLower = stripCorporateSuffixes(clean).toLowerCase();
   const map = {
     'abat': 'ABAT', 'abml': 'ABAT', 'american battery': 'ABAT', '아메리칸 배터리': 'ABAT',
     'tsla': 'TSLA', 'tesla': 'TSLA', '테슬라': 'TSLA',
@@ -179,14 +191,35 @@ function resolveTickerSymbol(name) {
     'kb금융': '105560.KS', '신한금융': '055550.KS', 'shinhan': '055550.KS',
   };
   if (map[lower]) return map[lower];
+  if (strippedLower && map[strippedLower]) return map[strippedLower];
   // Partial match: key must be 4+ chars and appear as a whole word in the query
   for (const key of Object.keys(map)) {
     if (key.length >= 4) {
-      const wordBoundary = new RegExp(`(^|\\s|-)${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|\\s|-)`, 'i');
-      if (wordBoundary.test(lower)) return map[key];
+      const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const wordBoundary = new RegExp(`(^|[\\s,\\-.\\(\\)])${escaped}($|[\\s,\\-.\\(\\)])`, 'i');
+      if (wordBoundary.test(lower) || (strippedLower && wordBoundary.test(strippedLower))) return map[key];
     }
   }
   return null;
+}
+
+async function fetchYahooTickerSearch(companyName) {
+  try {
+    const cleaned = stripCorporateSuffixes(companyName) || companyName.trim();
+    const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(cleaned)}&quotesCount=5&newsCount=0`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const quotes = data?.quotes || [];
+    const match = quotes.find(q => q && q.symbol && (q.quoteType === 'EQUITY' || q.quoteType === 'ETF'));
+    return match ? match.symbol : null;
+  } catch (e) {
+    console.warn('[YahooTickerSearch]', e.message);
+    return null;
+  }
 }
 
 // ── Stock Price Orchestrator & KRX/NXT Logic ──────────────────────────────
@@ -1308,6 +1341,10 @@ app.get('/api/stock-price', async (req, res) => {
   if (!ticker) {
     const naverCode = await fetchNaverTickerSearch(company);
     if (naverCode) ticker = naverCode;
+  }
+  if (!ticker) {
+    const yahooCode = await fetchYahooTickerSearch(company);
+    if (yahooCode) ticker = yahooCode;
   }
   if (!ticker) return res.json({ found: false, company, ticker: null });
   console.log(`[Stock Price] Fetching ${ticker} for "${company}"...`);

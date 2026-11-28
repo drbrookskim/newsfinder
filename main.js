@@ -305,10 +305,11 @@ document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
   companyInput.focus();
 
-  // URL ticker parameter processing for auto-search
+  // URL ticker parameter processing for auto-search & Signnith suite context
   try {
+    const suiteCtx = window.SignnithSuite ? window.SignnithSuite.readSuiteContext() : null;
     const urlParams = new URLSearchParams(window.location.search);
-    const tickerParam = urlParams.get('ticker');
+    const tickerParam = (suiteCtx && suiteCtx.ticker) || urlParams.get('ticker');
     if (tickerParam) {
       const query = decodeURIComponent(tickerParam).trim();
       if (query) {
@@ -317,6 +318,32 @@ document.addEventListener('DOMContentLoaded', () => {
           clearInputBtn.style.display = 'flex';
         }
         performAnalysis(query);
+      }
+    }
+    const ctxBar = document.getElementById('signnithContextBar');
+    const ctxText = document.getElementById('signnithContextText');
+    const fbBtn = document.getElementById('sendSignnithFeedbackBtn');
+    if (ctxBar && ctxText && suiteCtx && (suiteCtx.from === 'signnith' || suiteCtx.signal)) {
+      const sig = suiteCtx.signal;
+      const confPct = sig && sig.confidence != null ? `${Math.round(sig.confidence * 100)}%` : '-';
+      const scoreTxt = sig && sig.combined != null ? sig.combined.toFixed(2) : '-';
+      ctxText.innerHTML = sig
+        ? `<strong>Signnith 기준 신호</strong> <span>${sig.action || 'HOLD'}</span> · <span>신뢰도 ${confPct}</span> · <span>점수 ${scoreTxt}</span>`
+        : `<strong>Signnith</strong>에서 전달된 종목 컨텍스트`;
+      ctxBar.style.display = 'flex';
+      if (fbBtn && window.SignnithSuite) {
+        fbBtn.addEventListener('click', () => {
+          const fb = window.__nfLatestFeedback || { ticker: tickerParam || '', score: 0, summary: 'impact=neutral' };
+          const isDark = document.documentElement.classList.contains('dark');
+          const url = window.SignnithSuite.buildFeedbackUrl('newsfinder', {
+            ticker: fb.ticker || tickerParam || '',
+            theme: isDark ? 'dark' : 'light',
+            signalId: sig && sig.signalId ? sig.signalId : '',
+            feedbackScore: fb.score,
+            feedbackSummary: fb.summary
+          });
+          window.open(url, '_blank');
+        });
       }
     }
   } catch (e) {
@@ -964,6 +991,15 @@ function renderResults(companyName, data) {
   const insightText = data.insight || '';
   const impact = detectMarketImpact(insightText);
   updateImpactBadge(impact);
+  try {
+    const score = impact === 'positive' ? 0.7 : impact === 'concern' ? -0.7 : 0;
+    const srcCount = Array.isArray(data.sources) ? data.sources.length : 0;
+    window.__nfLatestFeedback = {
+      ticker: companyName,
+      score,
+      summary: `impact=${impact},sources=${srcCount}`
+    };
+  } catch (_) {}
 
   // Parse and display AI News Analysis as 2x2 Editorial Card Grid
   renderAIInsightGrid(insightText, data.sources);

@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="/style.css">
+  <script src="https://drbrookskim.github.io/signnith/shared/suite-bridge.js"></script>
   <script>
     (function () {
       try {
@@ -68,6 +69,14 @@
         <li class="history-empty" data-i18n="history.empty">이력이 존재하지 않습니다</li>
       </ul>
     </div>
+
+    <!-- Signnith Orchestrator Context & Feedback Bar -->
+    <section id="signnithContextBar" class="band" style="display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 16px;margin-bottom:12px;border-radius:12px;border:1px solid rgba(255,138,0,0.35);background:rgba(255,138,0,0.08);font-size:0.84rem;">
+      <div id="signnithContextText" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"></div>
+      <button type="button" id="sendSignnithFeedbackBtn" class="nav-btn" style="border-color:rgba(255,138,0,0.45);">
+        Signnith로 되먹임 전송
+      </button>
+    </section>
 
     <!-- Hero & Command Search -->
     <section class="band hero-band">

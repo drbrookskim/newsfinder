@@ -18,6 +18,24 @@ function createResponse(data, status = 200) {
   });
 }
 
+async function fetchWithRetry(url, options = {}, { retries = 1, timeoutMs = 4500 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok || (res.status !== 429 && res.status < 500) || attempt === retries) {
+        return res;
+      }
+    } catch (e) {
+      clearTimeout(timer);
+      if (attempt === retries) throw e;
+    }
+    await new Promise(r => setTimeout(r, 250 * (attempt + 1)));
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     globalEnv = env;
@@ -50,8 +68,12 @@ export default {
           isKorean ? fetchNaverIntegration(ticker) : fetchYahooSectorInfo(ticker)
         ]);
         
-        if (!priceData) return createResponse({ found: false });
-        return createResponse({ found: true, ...priceData, marketIntel: marketIntel || null });
+        if (!priceData && !marketIntel) return createResponse({ found: false });
+        return createResponse({
+          found: true,
+          ...(priceData || { ticker, price: null }),
+          marketIntel: marketIntel || null
+        });
       } catch (e) {
         return createResponse({ error: 'Failed to fetch stock price' }, 500);
       }
@@ -683,7 +705,7 @@ async function fetchNaverFinance(ticker) {
 
   try {
     const url = `https://m.stock.naver.com/api/stock/${code}/basic`;
-    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const res = await fetchWithRetry(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!res.ok) return null;
     const data = await res.json();
     
@@ -729,7 +751,7 @@ async function fetchNaverIntegration(ticker) {
 
   try {
     const url = `https://m.stock.naver.com/api/stock/${code}/integration`;
-    const res = await fetch(url, {
+    const res = await fetchWithRetry(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': 'https://m.stock.naver.com/'
@@ -830,13 +852,13 @@ async function fetchNaverIntegration(ticker) {
 async function fetchFinvizData(ticker) {
   try {
     const url = `https://finviz.com/stock?t=${encodeURIComponent(ticker)}`;
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html'
       },
       redirect: 'follow'
-    });
+    }, { retries: 1, timeoutMs: 4000 });
     if (!response.ok) return null;
     const html = await response.text();
 
@@ -890,9 +912,9 @@ async function fetchYahooSectorInfo(ticker) {
 
   for (const url of yahooUrls) {
     try {
-      const response = await fetch(url, {
+      const response = await fetchWithRetry(url, {
         headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
-      });
+      }, { retries: 1, timeoutMs: 4000 });
       if (!response.ok) continue;
       const data = await response.json();
       const meta = data?.chart?.result?.[0]?.meta;
@@ -948,12 +970,12 @@ async function fetchYahooFinance(ticker) {
   ];
   for (const url of urls) {
     try {
-      const response = await fetch(url, {
+      const response = await fetchWithRetry(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0',
           'Accept': 'application/json'
         }
-      });
+      }, { retries: 1, timeoutMs: 4000 });
       if (!response.ok) continue;
       const data = await response.json();
       const meta = data?.chart?.result?.[0]?.meta;

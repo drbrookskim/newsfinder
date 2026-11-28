@@ -175,18 +175,44 @@ const trendingTags = document.querySelectorAll('.trending-tag-btn');
 // --- Initialization ---
 
 // ── Real-time Stock Price Widget ──────────────────────────────────────────
+let stockPriceAbortController = null;
+let stockPriceRequestId = 0;
+
 async function fetchAndDisplayStockPrice(companyName) {
   const card = document.getElementById('inline-stock-price');
   if (!card) return;
+
+  if (stockPriceAbortController) {
+    stockPriceAbortController.abort();
+  }
+  const controller = new AbortController();
+  stockPriceAbortController = controller;
+  const reqId = ++stockPriceRequestId;
+
   card.classList.add('loading');
   card.style.display = 'flex';
   try {
     const endpoint = `${API_BASE}/api/stock-price?company=${encodeURIComponent(companyName)}`;
-    const res = await fetch(endpoint);
+    const res = await fetch(endpoint, { signal: controller.signal });
     if (!res.ok) throw new Error('fetch failed');
     const data = await res.json();
+    if (reqId !== stockPriceRequestId) return;
+
     card.classList.remove('loading');
-    if (!data.found || !data.price) { card.style.display = 'none'; return; }
+    if (!data.found) {
+      card.style.display = 'none';
+      return;
+    }
+
+    // Render Market Intelligence panel even if price is temporarily unavailable
+    if (data.marketIntel) {
+      renderMarketIntelligence(data.marketIntel, data.price, data.currency, data);
+    }
+
+    if (!data.price) {
+      card.style.display = 'none';
+      return;
+    }
     
     const currency = data.currency === 'KRW' ? '' : (data.currency === 'EUR' ? '€' : '$');
     const isKRW = data.currency === 'KRW';
@@ -238,14 +264,13 @@ async function fetchAndDisplayStockPrice(companyName) {
       exchangeEl.textContent = data.exchangeLabel || data.exchange || '';
       exchangeEl.className = data.exchangeLabel ? 'exchange-badge' : '';
     }
-
-    // Render Market Intelligence panel if data available
-    if (data.marketIntel) {
-      renderMarketIntelligence(data.marketIntel, data.price, data.currency, data);
-    }
   } catch (e) {
+    if (e.name === 'AbortError' || reqId !== stockPriceRequestId) return;
     console.warn('[Stock Price] fetch failed:', e.message);
-    if (card) card.style.display = 'none';
+    if (card) {
+      card.classList.remove('loading');
+      card.style.display = 'none';
+    }
   }
 }
 

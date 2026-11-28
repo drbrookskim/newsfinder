@@ -262,6 +262,24 @@ async function fetchStockPrice(ticker) {
   return data;
 }
 
+async function fetchWithRetry(url, options = {}, { retries = 1, timeoutMs = 4500 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok || (res.status !== 429 && res.status < 500) || attempt === retries) {
+        return res;
+      }
+    } catch (e) {
+      clearTimeout(timer);
+      if (attempt === retries) throw e;
+    }
+    await new Promise(r => setTimeout(r, 250 * (attempt + 1)));
+  }
+}
+
 async function fetchNaverFinance(ticker) {
   let code = ticker;
   if (code.includes('.')) code = code.split('.')[0];
@@ -269,7 +287,7 @@ async function fetchNaverFinance(ticker) {
 
   try {
     const url = `https://m.stock.naver.com/api/stock/${code}/basic`;
-    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const res = await fetchWithRetry(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!res.ok) return null;
     const data = await res.json();
     
@@ -314,12 +332,12 @@ async function fetchYahooFinance(ticker) {
   ];
   for (const url of urls) {
     try {
-      const response = await fetch(url, {
+      const response = await fetchWithRetry(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0',
           'Accept': 'application/json'
         }
-      });
+      }, { retries: 1, timeoutMs: 4000 });
       if (!response.ok) continue;
       const data = await response.json();
       const meta = data?.chart?.result?.[0]?.meta;
@@ -345,6 +363,206 @@ async function fetchYahooFinance(ticker) {
     }
   }
   return null;
+}
+
+async function fetchNaverIntegration(ticker) {
+  let code = ticker;
+  if (code.includes('.')) code = code.split('.')[0];
+  if (!/^\d{6}$/.test(code)) return null;
+
+  try {
+    const url = `https://m.stock.naver.com/api/stock/${code}/integration`;
+    const res = await fetchWithRetry(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://m.stock.naver.com/'
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+
+    let investorFlow = null;
+    if (data.dealTrendInfos && data.dealTrendInfos.length > 0) {
+      const latest = data.dealTrendInfos[0];
+      investorFlow = {
+        date: latest.bizdate,
+        foreigner: latest.foreignerPureBuyQuant,
+        institution: latest.organPureBuyQuant,
+        individual: latest.individualPureBuyQuant,
+        foreignerRatio: latest.foreignerHoldRatio,
+        volume: latest.accumulatedTradingVolume
+      };
+    }
+
+    let sectorInfo = null;
+    if (data.industryCompareInfo && data.industryCompareInfo.length > 0) {
+      const peers = data.industryCompareInfo;
+      sectorInfo = {
+        industryCode: data.industryCode,
+        peers: peers.slice(0, 5).map(p => ({
+          code: p.itemCode,
+          name: p.stockName,
+          marketValue: p.marketValue,
+          changePercent: p.fluctuationsRatio,
+          changeDir: p.compareToPreviousPrice?.text || ''
+        }))
+      };
+    }
+
+    let consensus = null;
+    if (data.consensusInfo) {
+      const c = data.consensusInfo;
+      const mean = parseFloat(c.recommMean);
+      let recommLabel = '의견없음';
+      if (mean >= 4.5) recommLabel = '강력매수';
+      else if (mean >= 3.5) recommLabel = '매수';
+      else if (mean >= 2.5) recommLabel = '중립';
+      else if (mean >= 1.5) recommLabel = '매도';
+      else if (mean > 0) recommLabel = '강력매도';
+      consensus = {
+        recommMean: c.recommMean,
+        recommLabel,
+        targetPrice: c.priceTargetMean
+      };
+    }
+
+    let researches = null;
+    if (data.researches && data.researches.length > 0) {
+      researches = data.researches.slice(0, 3).map(r => ({
+        firm: r.bnm,
+        title: r.tit,
+        date: r.wdt
+      }));
+    }
+
+    let keyIndicators = null;
+    if (data.keyIndicators && data.keyIndicators.length > 0) {
+      const indicatorMap = {};
+      data.keyIndicators.forEach(ki => {
+        indicatorMap[ki.code] = ki.value;
+      });
+      keyIndicators = {
+        marketCap: indicatorMap['marketValue'] || null,
+        per: indicatorMap['per'] || null,
+        pbr: indicatorMap['pbr'] || null,
+        foreignRate: indicatorMap['foreignRate'] || null,
+        high52: indicatorMap['highPriceOf52Weeks'] || null,
+        low52: indicatorMap['lowPriceOf52Weeks'] || null,
+        dividendYield: indicatorMap['dividendYieldRatio'] || null
+      };
+    }
+
+    return { investorFlow, sectorInfo, consensus, researches, keyIndicators, type: 'KRX' };
+  } catch (e) {
+    console.warn('[NaverIntegration]', e.message);
+    return null;
+  }
+}
+
+async function fetchFinvizData(ticker) {
+  try {
+    const url = `https://finviz.com/stock?t=${encodeURIComponent(ticker)}`;
+    const response = await fetchWithRetry(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html'
+      },
+      redirect: 'follow'
+    }, { retries: 1, timeoutMs: 4000 });
+    if (!response.ok) return null;
+    const html = await response.text();
+
+    let sector = null;
+    let industry = null;
+    const sectorMatch = html.match(/screener\?v=111&(?:amp;)?f=sec_[^"]+"[^>]*>([^<]+)<\/a>/);
+    if (sectorMatch) sector = sectorMatch[1];
+    const industryMatch = html.match(/screener\?v=111&(?:amp;)?f=ind_[^"]+"[^>]*>([^<]+)<\/a>/);
+    if (industryMatch) industry = industryMatch[1];
+
+    let marketCap = null;
+    const marketCapMatch = html.match(/Market Cap<\/div><\/td>\s*<td[^>]*>\s*<div[^>]*>\s*<b>([^<]+)<\/b>/i);
+    if (marketCapMatch) marketCap = marketCapMatch[1];
+
+    const peers = [];
+    const peerRegex = /data-boxover-ticker="([^"]+)"\s+data-boxover-company="([^"]+)"[^>]*?data-boxover-value="([^"]+)"/g;
+    let match;
+    let limit = 5;
+    while ((match = peerRegex.exec(html)) !== null && limit > 0) {
+      peers.push({
+        code: match[1],
+        name: match[2],
+        marketValue: match[3],
+        changePercent: '-',
+        changeDir: '보합'
+      });
+      limit--;
+    }
+
+    return { sector, industry, marketCap, peers };
+  } catch (e) {
+    console.warn('[Finviz Scraping]', ticker, e.message);
+    return null;
+  }
+}
+
+async function fetchYahooSectorInfo(ticker) {
+  const yahooUrls = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`
+  ];
+
+  let yahooMeta = null;
+  const finvizPromise = fetchFinvizData(ticker);
+
+  for (const url of yahooUrls) {
+    try {
+      const response = await fetchWithRetry(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
+      }, { retries: 1, timeoutMs: 4000 });
+      if (!response.ok) continue;
+      const data = await response.json();
+      const meta = data?.chart?.result?.[0]?.meta;
+      if (!meta) continue;
+      yahooMeta = meta;
+      break;
+    } catch (e) {
+      console.error('[YahooSector]', ticker, e.message);
+    }
+  }
+
+  if (!yahooMeta) return null;
+  const finviz = await finvizPromise;
+
+  const prevClose = yahooMeta.chartPreviousClose ?? yahooMeta.regularMarketPreviousClose ?? yahooMeta.previousClose ?? yahooMeta.regularMarketPrice;
+  const currPrice = yahooMeta.regularMarketPrice;
+  const priceDiff = currPrice - prevClose;
+  const pctChange = prevClose ? ((priceDiff / prevClose) * 100).toFixed(2) : '-';
+
+  const peers = finviz?.peers?.length ? [
+    {
+      code: ticker,
+      name: yahooMeta.longName || yahooMeta.shortName || ticker,
+      marketValue: finviz.marketCap || '-',
+      changePercent: String(pctChange),
+      changeDir: priceDiff > 0 ? '상승' : priceDiff < 0 ? '하락' : '보합'
+    },
+    ...finviz.peers
+  ] : null;
+
+  return {
+    type: 'US',
+    ticker: ticker,
+    exchange: yahooMeta.fullExchangeName || yahooMeta.exchangeName || '',
+    currency: yahooMeta.currency || 'USD',
+    longName: yahooMeta.longName || yahooMeta.shortName || ticker,
+    marketCap: finviz?.marketCap || null,
+    sector: finviz?.sector || null,
+    industry: finviz?.industry || null,
+    volume: yahooMeta.regularMarketVolume || null,
+    high52: yahooMeta.fiftyTwoWeekHigh || null,
+    low52: yahooMeta.fiftyTwoWeekLow || null,
+    sectorInfo: peers ? { industryCode: '', peers } : null
+  };
 }
 
 // ── Naver News API Fetcher ─────────────────────────────────────────────────
@@ -1093,9 +1311,17 @@ app.get('/api/stock-price', async (req, res) => {
   }
   if (!ticker) return res.json({ found: false, company, ticker: null });
   console.log(`[Stock Price] Fetching ${ticker} for "${company}"...`);
-  const priceData = await fetchStockPrice(ticker);
-  if (!priceData) return res.json({ found: true, ticker, price: null });
-  res.json({ found: true, ...priceData });
+  const isKorean = ticker.endsWith('.KS') || ticker.endsWith('.KQ') || /^\d{6}$/.test(ticker);
+  const [priceData, marketIntel] = await Promise.all([
+    fetchStockPrice(ticker),
+    isKorean ? fetchNaverIntegration(ticker) : fetchYahooSectorInfo(ticker)
+  ]);
+  if (!priceData && !marketIntel) return res.json({ found: false, company, ticker });
+  res.json({
+    found: true,
+    ...(priceData || { ticker, price: null }),
+    marketIntel: marketIntel || null
+  });
 });
 
 app.use(express.static(path.join(__dirname, 'dist')));

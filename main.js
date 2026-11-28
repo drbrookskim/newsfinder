@@ -357,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
         : `<strong>Signnith</strong>에서 전달된 종목 컨텍스트`;
       ctxBar.style.display = 'flex';
       if (fbBtn && window.SignnithSuite) {
-        const openFeedback = () => {
+          const openFeedback = () => {
           const fb = window.__nfLatestFeedback || { ticker: tickerParam || '', score: 0, summary: 'impact=neutral' };
           const isDark = document.documentElement.classList.contains('dark');
           const url = window.SignnithSuite.buildFeedbackUrl('newsfinder', {
@@ -367,7 +367,8 @@ document.addEventListener('DOMContentLoaded', () => {
             feedbackScore: fb.score,
             feedbackSummary: fb.summary
           });
-          window.open(url, '_blank');
+          const win = window.open(url, '_blank');
+          if (!win) window.location.href = url;
         };
         const txt = fbBtn.querySelector('.db-refine-txt');
         const spin = fbBtn.querySelector('.db-refine-spin');
@@ -404,7 +405,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!settled()) raf = requestAnimationFrame(loop); else raf = 0;
           };
           fbBtn.addEventListener('click', () => {
-            openFeedback();
             if (state !== 'idle') return;
             timers.forEach(clearTimeout); timers = [];
             state = 'load'; T.t = 0; W.t = LOAD_W; P.t = 1;
@@ -413,6 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
               state = 'done'; P.t = 0; W.t = DONE_W; G.t = 1; D.t = 1;
               fbBtn.setAttribute('aria-label', 'Sent');
               timers.push(setTimeout(() => { K.t = 1; }, 140));
+              timers.push(setTimeout(() => { openFeedback(); }, 350));
             }, 900));
             timers.push(setTimeout(() => {
               state = 'idle'; D.t = 0; G.t = 0; K.t = 0; W.t = IDLE_W;
